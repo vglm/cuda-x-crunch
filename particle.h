@@ -31,16 +31,9 @@
 
 class particle
 {
-	private:
-		v3 position;
-		v3 velocity;
-		v3 totalDistance;
-
 	public:
+		uint8_t m_data[32];
 		particle();
-		__host__ __device__ void advance(float dist);
-		const v3& getTotalDistance() const;
-
 };
 
 #endif
