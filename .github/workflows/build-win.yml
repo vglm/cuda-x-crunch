@@ -37,4 +37,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: particle_test
-          path: particle_test/*
+          path: Release/*
