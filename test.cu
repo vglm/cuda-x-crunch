@@ -35,8 +35,7 @@ typedef union {
 	uint32_t d[50];
 } ethhash;
 
-#define rotate(x, y) __funnelshift_r(x, x, y)
-
+#define rotate(x, s) ((x << s) | (x >> (64 - s)))
 #define bswap32(n) (rotate(n & 0x00FF00FF, 24U)|(rotate(n, 8U) & 0x00FF00FF))
 
 
@@ -418,8 +417,11 @@ __device__ void profanity_init_seed(const point* const precomp, point* const p, 
 	}
 }
 
-__device__ void profanity_init(const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
-	const size_t id = threadIdx.x + blockIdx.x * blockDim.x;
+#define PROFANITY_INVERSE_SIZE 255
+
+
+__device__ void profanity_init(int i, const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE + i;
 	
 	/*
 	point p = {
@@ -490,7 +492,6 @@ __device__ void profanity_init(const point* const precomp, mp_number* const pDel
 	}
 }
 
-#define PROFANITY_INVERSE_SIZE 255
 
 // This kernel calculates several modular inversions at once with just one inverse.
 // It's an implementation of Algorithm 2.11 from Modern Computer Arithmetic:
@@ -500,7 +501,7 @@ __device__ void profanity_init(const point* const precomp, mp_number* const pDel
 // to make seemingly non-functional changes to the code to make the compiler
 // generate the most optimized version.
 __device__ void profanity_inverse(const mp_number* const pDeltaX, mp_number* const pInverse) {
-	const size_t id = threadIdx.x + blockIdx.x * blockDim.x * PROFANITY_INVERSE_SIZE;
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE;
 
 	// negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
 	mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
@@ -541,7 +542,7 @@ __device__ void profanity_inverse(const mp_number* const pDeltaX, mp_number* con
 __device__ void sha3_keccakf(ethhash* const h);
 
 __device__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pInverse, mp_number* const pPrevLambda) {
-	const size_t id = threadIdx.x + blockIdx.x * blockDim.x * PROFANITY_INVERSE_SIZE;
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE;
 
 	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
 	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
@@ -730,27 +731,30 @@ __device__ void sha3_keccakf(ethhash* const h)
 }
 
 
-__global__ void advanceParticles(float dt, particle * pArray, int nParticles, const point* precomp, const mp_number* pointsDeltaX)
+__global__ void advanceParticles(float dt, particle * pArray, int nParticles, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse)
 {
+	ulong4 seed;
+	seed.x = 0x12345678;
+	seed.y = 0x23456789;
+	seed.z = 0x34567890;
+	seed.w = 0;
 
-	//__device__ void profanity_init(const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
+	result pResult = { 0 };
 
-
-	int idx = threadIdx.x + blockIdx.x*blockDim.x;
-	if(idx < nParticles)
+	for (int i = 0; i < PROFANITY_INVERSE_SIZE; i++)
 	{
-		for (int i = 0; i < 32; i++)
-		{
-			pArray[idx].m_data[i] = idx + i;
-		}
-
+		profanity_init(i, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seed, seed);
 	}
+
+	profanity_inverse(pointsDeltaX, pInverse);
+	profanity_iterate(pointsDeltaX, pInverse, pPrevLambda);
+	//pInverse[(threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE].d[0] = 222222222;
 }
 
 int main(int argc, char ** argv)
 {
 	cudaError_t error;
-	int n = 1000000;
+	int n = 256;
 	if(argc > 1)	{ n = atoi(argv[1]);}     // Number of particles
 	if(argc > 2)	{	srand(atoi(argv[2])); } // Random seed
 
@@ -769,9 +773,9 @@ int main(int argc, char ** argv)
 	mp_number* invData = NULL;
 	cudaMalloc(&devPArray, n*sizeof(particle));
 	cudaMalloc(&precomp, 8160 * sizeof(point));
-	cudaMalloc(&pointsDeltaX, n*sizeof(mp_number));
-	cudaMalloc(&prevLambda, n * sizeof(mp_number));
-	cudaMalloc(&invData, n * sizeof(mp_number));
+	cudaMalloc(&pointsDeltaX, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
+	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
+	cudaMalloc(&invData, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
 
 	cudaDeviceSynchronize(); error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -780,30 +784,30 @@ int main(int argc, char ** argv)
         exit(1);
   	}
 
-	mp_number* pointsDeltaXHost = new mp_number[n];
-	for(int i=0; i<n; i++)
+	mp_number* pointsDeltaXHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
-			pointsDeltaXHost[i].d[j] = 0;
+			pointsDeltaXHost[i].d[j] = 55;
 		}
 	}
 
-	mp_number* prevLambdaHost = new mp_number[n];
-	for(int i=0; i<n; i++)
+	mp_number* prevLambdaHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
-			prevLambdaHost[i].d[j] = 0;
+			prevLambdaHost[i].d[j] = 66;
 		}
 	}
 
-	mp_number* invDataHost = new mp_number[n];
-	for(int i=0; i<n; i++)
+	mp_number* invDataHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
-			invDataHost[i].d[j] = 0;
+			invDataHost[i].d[j] = 44;
 		}
 	}
 
@@ -812,9 +816,9 @@ int main(int argc, char ** argv)
 
 	cudaMemcpy(devPArray, pArray, n*sizeof(particle), cudaMemcpyHostToDevice);
 	cudaMemcpy(precomp, g_precomp, 8160 * sizeof(point), cudaMemcpyHostToDevice);
-	cudaMemcpy(pointsDeltaX, pointsDeltaXHost, n*sizeof(mp_number), cudaMemcpyHostToDevice);
-	cudaMemcpy(prevLambda, prevLambdaHost, n*sizeof(mp_number), cudaMemcpyHostToDevice);
-	cudaMemcpy(invData, invDataHost, n*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(pointsDeltaX, pointsDeltaXHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(prevLambda, prevLambdaHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(invData, invDataHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
 
 	cudaDeviceSynchronize(); error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -823,20 +827,25 @@ int main(int argc, char ** argv)
         exit(1);
   	}
 
-	for(int i=0; i<100; i++)
-	{
-		float dt = (float)rand()/(float) RAND_MAX; // Random distance each step
-		advanceParticles<<< 1 +  n/256, 256>>>(dt, devPArray, n, precomp, pointsDeltaX);
-		error = cudaGetLastError();
-		if (error != cudaSuccess)
-    	{
-    	printf("3 %s\n",cudaGetErrorString(error));
-    	exit(1);
-    	}
+	float dt = (float)rand()/(float) RAND_MAX; // Random distance each step
+	advanceParticles<<< 1, 256>>>(dt, devPArray, n, precomp, pointsDeltaX, prevLambda, invData);
+	error = cudaGetLastError();
+	if (error != cudaSuccess)
+    {
+    printf("3 %s\n",cudaGetErrorString(error));
+    exit(1);
+    }
 
-		cudaDeviceSynchronize();
-	}
+	cudaDeviceSynchronize();
+
+	printf("Size of mp_number %d\n", sizeof(mp_number));
 	cudaMemcpy(pArray, devPArray, n*sizeof(particle), cudaMemcpyDeviceToHost);
+	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
+
+
+
 
 	for (int n = 0; n < 100; n++)
 	{
@@ -847,5 +856,19 @@ int main(int argc, char ** argv)
 		}
 		printf("\n");
 	}
+	for (int n = 0; n < 100; n++)
+	{
+		printf("Hash no: %d\n0x", n);
+		const uint8_t* hash = (uint8_t * )invDataHost[n * PROFANITY_INVERSE_SIZE].d;
+		for (int i = 0; i < 20; i++)
+		{
+			printf("%02x", hash[i]);
+		}
+		printf("\n");
+	}
+
+
+
+
 	return 0;
 }
