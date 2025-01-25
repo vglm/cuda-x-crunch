@@ -9,6 +9,9 @@ add_library(particles STATIC
   randomize.h
   particle.cu
   particle.h
+  precomp.cpp
+  precomp.hpp
+  types.hpp
   v3.cu
   v3.h
   )
