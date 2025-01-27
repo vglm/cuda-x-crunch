@@ -13,6 +13,8 @@ add_library(particles STATIC
   precomp.cpp
   precomp.hpp
   types.hpp
+  utils.hpp
+  utils.cpp
   v3.cu
   v3.h
   )

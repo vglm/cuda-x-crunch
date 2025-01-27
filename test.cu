@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "help.hpp"
+#include "utils.hpp"
 #include "ArgParser.hpp"
 #include "particle.h"
 #include <stdlib.h>
@@ -426,7 +427,7 @@ __device__ void profanity_init_seed(const point* const precomp, point* const p, 
 #define PROFANITY_INVERSE_SIZE 255
 
 
-__device__ void profanity_init(int i, const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
+__device__ void profanity_init(int i, const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const uint64_t seed[4], const uint64_t seedX[4], const uint64_t seedY[4]) {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE + i;
 	
 	/*
@@ -446,22 +447,22 @@ __device__ void profanity_init(int i, const point* const precomp, mp_number* con
 	};*/
 
 	point p;
-	p.x.d[0] = seedX.x & 0xFFFFFFFF;
-	p.x.d[1] = seedX.x >> 32;
-	p.x.d[2] = seedX.y & 0xFFFFFFFF;
-	p.x.d[3] = seedX.y >> 32;
-	p.x.d[4] = seedX.z & 0xFFFFFFFF;
-	p.x.d[5] = seedX.z >> 32;
-	p.x.d[6] = seedX.w & 0xFFFFFFFF;
-	p.x.d[7] = seedX.w >> 32;
-	p.y.d[0] = seedY.x & 0xFFFFFFFF;
-	p.y.d[1] = seedY.x >> 32;
-	p.y.d[2] = seedY.y & 0xFFFFFFFF;
-	p.y.d[3] = seedY.y >> 32;
-	p.y.d[4] = seedY.z & 0xFFFFFFFF;
-	p.y.d[5] = seedY.z >> 32;
-	p.y.d[6] = seedY.w & 0xFFFFFFFF;
-	p.y.d[7] = seedY.w >> 32;
+	p.x.d[0] = seedX[0] & 0xFFFFFFFF;
+	p.x.d[1] = seedX[0] >> 32;
+	p.x.d[2] = seedX[1] & 0xFFFFFFFF;
+	p.x.d[3] = seedX[1] >> 32;
+	p.x.d[4] = seedX[2] & 0xFFFFFFFF;
+	p.x.d[5] = seedX[2] >> 32;
+	p.x.d[6] = seedX[3] & 0xFFFFFFFF;
+	p.x.d[7] = seedX[3] >> 32;
+	p.y.d[0] = seedY[0] & 0xFFFFFFFF;
+	p.y.d[1] = seedY[0] >> 32;
+	p.y.d[2] = seedY[1] & 0xFFFFFFFF;
+	p.y.d[3] = seedY[1] >> 32;
+	p.y.d[4] = seedY[2] & 0xFFFFFFFF;
+	p.y.d[5] = seedY[2] >> 32;
+	p.y.d[6] = seedY[3] & 0xFFFFFFFF;
+	p.y.d[7] = seedY[3] >> 32;
 
 	point p_random;
 	bool bIsFirst = true;
@@ -470,10 +471,10 @@ __device__ void profanity_init(int i, const point* const precomp, mp_number* con
 	point tmp3;
 
 	// Calculate k*G where k = seed.wzyx (in other words, find the point indicated by the private key represented in seed)
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 0, seed.x);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, seed.y);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, seed.z);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, seed.w + id);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 0, seed[0]);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, seed[1]);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, seed[2]);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, seed[3] + id);
 	point_add(&p, &p, &p_random);
 
 	// Calculate current lambda in this point
@@ -737,7 +738,9 @@ __device__ void sha3_keccakf(ethhash* const h)
 }
 
 
-__global__ void advanceParticles(float dt, particle * pArray, int nParticles, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse)
+__global__ void advanceParticles(float dt, particle * pArray, int nParticles, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse
+    uint64_t seedX[4], uint64_t seedY[4])
+)
 {
 	ulong4 seed;
 	seed.x = 0x0;
@@ -751,7 +754,7 @@ __global__ void advanceParticles(float dt, particle * pArray, int nParticles, po
 
 	for (int i = 0; i < PROFANITY_INVERSE_SIZE; i++)
 	{
-		profanity_init(i, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seed, seed);
+		profanity_init(i, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seedX, seedY);
 	}
 
 	profanity_inverse(pointsDeltaX, pInverse);
@@ -799,6 +802,32 @@ static void printResult(const uint64_t seed[4], uint64_t round, result r, uint8_
 	std::cout << "s Score: " << std::setw(2) << (int)score << " Private: 0x" << strPrivate << ' ';
 
 	std::cout << ": 0x" << strPublic << std::endl;
+}
+
+struct PublicKeyPart {
+    uint64_t val[4];
+};
+
+PublicKeyPart hexStringToUint64(const std::string& hexStr) {
+    // Ensure the input string is not too long
+    if (hexStr.length() != 64) {
+        throw std::invalid_argument("Hex string has to be exactly 64 characters.");
+    }
+    // Function to convert a 16-character substring to a uint64_t
+    auto hexToUint64 = [](const std::string& subHex) -> uint64_t {
+        uint64_t value = 0;
+        std::istringstream iss(subHex);
+        iss >> std::hex >> value;
+        return value;
+    };
+
+    PublicKeyPart result;
+    // Extract 16-character chunks and convert them to uint64_t
+    result.val[0] = hexToUint64(hexStr.substr(0, 16));
+    result.val[1] = hexToUint64(hexStr.substr(16, 16));
+    result.val[2] = hexToUint64(hexStr.substr(32, 16));
+    result.val[3] = hexToUint64(hexStr.substr(48, 16));
+    return result;
 }
 
 int main(int argc, char ** argv)
@@ -863,6 +892,20 @@ int main(int argc, char ** argv)
 			std::cout << "error: this tool requires your public key to derive it's private key security" << std::endl;
 			return 1;
 		}
+        strPublicKey = string_replace(strPublicKey, "0x", "");
+        if (strPublicKey.length() != 128) {
+            std::cout << "error: public key must be 128 hexadecimal characters long" << std::endl;
+            return 1;
+        }
+
+
+        PublicKeyPart publicKeyX = hexStringToUint64(strPublicKey.substr(0, 64));
+        PublicKeyPart publicKeyY = hexStringToUint64(strPublicKey.substr(64, 64));
+
+std::cout << "Public key loaded: " << strPublicKey << std::endl;
+
+return 0;
+
 	cudaError_t error;
 	int n = 256;
 	if(argc > 1)	{ n = atoi(argv[1]);}     // Number of particles
