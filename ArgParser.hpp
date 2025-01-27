@@ -1,8 +1,8 @@
-#ifndef HPP_ARGPARSER
-#define HPP_ARGPARSER
+#pragma once
 
 #include <type_traits>
 #include <stdexcept>
+#include <iostream>
 #include <vector>
 #include <map>
 #include "lexical_cast.hpp"
@@ -93,6 +93,7 @@ class ArgParser {
 				}
 			}
 			catch (std::out_of_range & e) {
+			    std::cerr << "Error: " << e.what() << std::endl;
 				return false;
 			}
 
@@ -103,5 +104,3 @@ class ArgParser {
 		std::vector<std::string> m_args;
 		std::map<std::string, std::pair<bool, IArgument *>> m_mapArgs;
 };
-
-#endif /* HPP_ARGPARSER */

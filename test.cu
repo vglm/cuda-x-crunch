@@ -42,8 +42,9 @@ typedef union {
 	uint32_t d[50];
 } ethhash;
 
-#define rotate(x, s) ((x << s) | (x >> (64 - s)))
-#define bswap32(n) (rotate(n & 0x00FF00FF, 24U)|(rotate(n, 8U) & 0x00FF00FF))
+#define rotate64(x, s) ((x << s) | (x >> (64U - s)))
+#define rotate32(x, s) ((x << s) | (x >> (32U - s)))
+#define bswap32(n) (rotate32(n & 0x00FF00FFU, 24U)|(rotate32(n, 8U) & 0x00FF00FFU))
 
 
 
@@ -56,7 +57,7 @@ __device__ const mp_number mod              = { {0xfffffc2f, 0xfffffffe, 0xfffff
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 
 // doubleNegativeGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
-__device__ const mp_number doubleNegativeGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11} };
+//__device__ const mp_number doubleNegativeGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11} };
 
 // negativeGy       = 0xb7c52588d95c3b9aa25b0403f1eef75702e84bb7597aabe663b82f6f04ef2777
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
@@ -613,7 +614,7 @@ __device__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pIn
 
 #define TH_ELT(t, c0, c1, c2, c3, c4, d0, d1, d2, d3, d4) \
 { \
-    t = rotate((uint64_t)(d0 ^ d1 ^ d2 ^ d3 ^ d4), (uint64_t)1) ^ (c0 ^ c1 ^ c2 ^ c3 ^ c4); \
+    t = rotate64((uint64_t)(d0 ^ d1 ^ d2 ^ d3 ^ d4), (uint64_t)1) ^ (c0 ^ c1 ^ c2 ^ c3 ^ c4); \
 }
 
 #define THETA(s00, s01, s02, s03, s04, \
@@ -640,30 +641,30 @@ __device__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pIn
               s30, s31, s32, s33, s34, \
               s40, s41, s42, s43, s44) \
 { \
-	t0  = rotate(s10, (uint64_t) 1);  \
-	s10 = rotate(s11, (uint64_t)44); \
-	s11 = rotate(s41, (uint64_t)20); \
-	s41 = rotate(s24, (uint64_t)61); \
-	s24 = rotate(s42, (uint64_t)39); \
-	s42 = rotate(s04, (uint64_t)18); \
-	s04 = rotate(s20, (uint64_t)62); \
-	s20 = rotate(s22, (uint64_t)43); \
-	s22 = rotate(s32, (uint64_t)25); \
-	s32 = rotate(s43, (uint64_t) 8); \
-	s43 = rotate(s34, (uint64_t)56); \
-	s34 = rotate(s03, (uint64_t)41); \
-	s03 = rotate(s40, (uint64_t)27); \
-	s40 = rotate(s44, (uint64_t)14); \
-	s44 = rotate(s14, (uint64_t) 2); \
-	s14 = rotate(s31, (uint64_t)55); \
-	s31 = rotate(s13, (uint64_t)45); \
-	s13 = rotate(s01, (uint64_t)36); \
-	s01 = rotate(s30, (uint64_t)28); \
-	s30 = rotate(s33, (uint64_t)21); \
-	s33 = rotate(s23, (uint64_t)15); \
-	s23 = rotate(s12, (uint64_t)10); \
-	s12 = rotate(s21, (uint64_t) 6); \
-	s21 = rotate(s02, (uint64_t) 3); \
+	t0  = rotate64(s10, (uint64_t) 1);  \
+	s10 = rotate64(s11, (uint64_t)44); \
+	s11 = rotate64(s41, (uint64_t)20); \
+	s41 = rotate64(s24, (uint64_t)61); \
+	s24 = rotate64(s42, (uint64_t)39); \
+	s42 = rotate64(s04, (uint64_t)18); \
+	s04 = rotate64(s20, (uint64_t)62); \
+	s20 = rotate64(s22, (uint64_t)43); \
+	s22 = rotate64(s32, (uint64_t)25); \
+	s32 = rotate64(s43, (uint64_t) 8); \
+	s43 = rotate64(s34, (uint64_t)56); \
+	s34 = rotate64(s03, (uint64_t)41); \
+	s03 = rotate64(s40, (uint64_t)27); \
+	s40 = rotate64(s44, (uint64_t)14); \
+	s44 = rotate64(s14, (uint64_t) 2); \
+	s14 = rotate64(s31, (uint64_t)55); \
+	s31 = rotate64(s13, (uint64_t)45); \
+	s13 = rotate64(s01, (uint64_t)36); \
+	s01 = rotate64(s30, (uint64_t)28); \
+	s30 = rotate64(s33, (uint64_t)21); \
+	s33 = rotate64(s23, (uint64_t)15); \
+	s23 = rotate64(s12, (uint64_t)10); \
+	s12 = rotate64(s21, (uint64_t) 6); \
+	s21 = rotate64(s02, (uint64_t) 3); \
 	s02 = t0; \
 }
 
@@ -738,27 +739,24 @@ __device__ void sha3_keccakf(ethhash* const h)
 }
 
 
-__global__ void advanceParticles(float dt, particle * pArray, int nParticles, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse
+__global__ void advanceParticles(float dt, particle * pArray, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse,
     uint64_t seedX[4], uint64_t seedY[4])
-)
 {
-	ulong4 seed;
-	seed.x = 0x0;
-	seed.y = 0x0;
-	seed.z = 0x0;
-	seed.w = 0;
-
-
+	uint64_t seed[4];
+	seed[0] = 0x0;
+	seed[1] = 0x0;
+	seed[2] = 0x0;
+	seed[3] = 0;
 
 	result pResult = { 0 };
 
-	for (int i = 0; i < PROFANITY_INVERSE_SIZE; i++)
-	{
-		profanity_init(i, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seedX, seedY);
-	}
+	//for (int i = 0; i < PROFANITY_INVERSE_SIZE; i++)
+//	{
+		profanity_init(0, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seedX, seedY);
+//	}
 
-	profanity_inverse(pointsDeltaX, pInverse);
-	profanity_iterate(pointsDeltaX, pInverse, pPrevLambda);
+	//profanity_inverse(pointsDeltaX, pInverse);
+	//profanity_iterate(pointsDeltaX, pInverse, pPrevLambda);
 	//pInverse[(threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE].d[0] = 222222222;
 }
 
@@ -902,14 +900,10 @@ int main(int argc, char ** argv)
         PublicKeyPart publicKeyX = hexStringToUint64(strPublicKey.substr(0, 64));
         PublicKeyPart publicKeyY = hexStringToUint64(strPublicKey.substr(64, 64));
 
-std::cout << "Public key loaded: " << strPublicKey << std::endl;
 
-return 0;
 
 	cudaError_t error;
-	int n = 256;
-	if(argc > 1)	{ n = atoi(argv[1]);}     // Number of particles
-	if(argc > 2)	{	srand(atoi(argv[2])); } // Random seed
+	const int run_size = 256;
 
 	error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -918,17 +912,17 @@ return 0;
   	    exit(1);
   	}
 
-	particle * pArray = new particle[n];
+	particle * pArray = new particle[run_size];
 	particle* devPArray = NULL;
 	point * precomp = NULL;
 	mp_number* pointsDeltaX = NULL;
 	mp_number* prevLambda = NULL;
 	mp_number* invData = NULL;
-	cudaMalloc(&devPArray, n*sizeof(particle));
+	cudaMalloc(&devPArray, run_size*sizeof(particle));
 	cudaMalloc(&precomp, 8160 * sizeof(point));
-	cudaMalloc(&pointsDeltaX, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
-	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
-	cudaMalloc(&invData, PROFANITY_INVERSE_SIZE * n * sizeof(mp_number));
+	cudaMalloc(&pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
+	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
+	cudaMalloc(&invData, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 
 	cudaDeviceSynchronize(); error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -937,8 +931,8 @@ return 0;
         exit(1);
   	}
 
-	mp_number* pointsDeltaXHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
-	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
+	mp_number* pointsDeltaXHost = new mp_number[PROFANITY_INVERSE_SIZE * run_size];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * run_size; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
@@ -946,8 +940,8 @@ return 0;
 		}
 	}
 
-	mp_number* prevLambdaHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
-	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
+	mp_number* prevLambdaHost = new mp_number[PROFANITY_INVERSE_SIZE * run_size];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * run_size; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
@@ -955,8 +949,8 @@ return 0;
 		}
 	}
 
-	mp_number* invDataHost = new mp_number[PROFANITY_INVERSE_SIZE * n];
-	for(int i=0; i< PROFANITY_INVERSE_SIZE * n; i++)
+	mp_number* invDataHost = new mp_number[PROFANITY_INVERSE_SIZE * run_size];
+	for(int i=0; i< PROFANITY_INVERSE_SIZE * run_size; i++)
 	{
 		for(int j=0; j<8; j++)
 		{
@@ -964,14 +958,11 @@ return 0;
 		}
 	}
 
-
-
-
-	cudaMemcpy(devPArray, pArray, n*sizeof(particle), cudaMemcpyHostToDevice);
+	cudaMemcpy(devPArray, pArray, run_size*sizeof(particle), cudaMemcpyHostToDevice);
 	cudaMemcpy(precomp, g_precomp, 8160 * sizeof(point), cudaMemcpyHostToDevice);
-	cudaMemcpy(pointsDeltaX, pointsDeltaXHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
-	cudaMemcpy(prevLambda, prevLambdaHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
-	cudaMemcpy(invData, invDataHost, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(pointsDeltaX, pointsDeltaXHost, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(prevLambda, prevLambdaHost, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyHostToDevice);
+	cudaMemcpy(invData, invDataHost, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyHostToDevice);
 
 	cudaDeviceSynchronize(); error = cudaGetLastError();
 	if (error != cudaSuccess)
@@ -981,7 +972,7 @@ return 0;
   	}
 
 	float dt = (float)rand()/(float) RAND_MAX; // Random distance each step
-	advanceParticles<<< 1, 256>>>(dt, devPArray, n, precomp, pointsDeltaX, prevLambda, invData);
+	advanceParticles<<< 1, 256>>>(dt, devPArray, precomp, pointsDeltaX, prevLambda, invData, publicKeyX.val, publicKeyY.val);
 	error = cudaGetLastError();
 	if (error != cudaSuccess)
     {
@@ -991,12 +982,19 @@ return 0;
 
 	cudaDeviceSynchronize();
 
-	printf("Size of mp_number %d\n", sizeof(mp_number));
-	cudaMemcpy(pArray, devPArray, n*sizeof(particle), cudaMemcpyDeviceToHost);
-	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
-	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
-	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * n*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	printf("Size of mp_number %lld\n", sizeof(mp_number));
+	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 
+	cudaDeviceSynchronize();
+	error = cudaGetLastError();
+	if (error != cudaSuccess)
+    {
+    printf("4 %s\n",cudaGetErrorString(error));
+    exit(1);
+    }
 
 
 
@@ -1009,14 +1007,14 @@ return 0;
 		}
 		printf("\n");
 	}*/
-	for (int n = 0; n < 100; n++)
+	for (uint64_t n = 0; n < run_size; n++)
 	{
-		printf("Hash no: %d\n0x", n);
+		printf("Hash no: %lld\n0x", n);
 		const uint8_t* hash = (uint8_t * )invDataHost[n * PROFANITY_INVERSE_SIZE].d;
 		const uint64_t seed[4] = {0, 0, 0, n};
 		result r = {0};
 		r.found = 1;
-		r.foundId = n;
+		r.foundId = (uint32_t) n;
 		memcpy(r.foundHash, hash, 20);
 		printResult(seed, 0, r, 0);
 		for (int i = 0; i < 20; i++)
