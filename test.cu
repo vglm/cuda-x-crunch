@@ -28,6 +28,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "precomp.hpp"
+#include <string>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 typedef union {
 	uint8_t b[200];
@@ -734,10 +738,12 @@ __device__ void sha3_keccakf(ethhash* const h)
 __global__ void advanceParticles(float dt, particle * pArray, int nParticles, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse)
 {
 	ulong4 seed;
-	seed.x = 0x12345678;
-	seed.y = 0x23456789;
-	seed.z = 0x34567890;
+	seed.x = 0x0;
+	seed.y = 0x0;
+	seed.z = 0x0;
 	seed.w = 0;
+
+
 
 	result pResult = { 0 };
 
@@ -749,6 +755,48 @@ __global__ void advanceParticles(float dt, particle * pArray, int nParticles, po
 	profanity_inverse(pointsDeltaX, pInverse);
 	profanity_iterate(pointsDeltaX, pInverse, pPrevLambda);
 	//pInverse[(threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE].d[0] = 222222222;
+}
+
+
+static std::string toHex(const uint8_t* const s, const size_t len) {
+	std::string b("0123456789abcdef");
+	std::string r;
+
+	for (size_t i = 0; i < len; ++i) {
+		const unsigned char h = s[i] / 16;
+		const unsigned char l = s[i] % 16;
+
+		r = r + b.substr(h, 1) + b.substr(l, 1);
+	}
+
+	return r;
+}
+
+static void printResult(const uint64_t seed[4], uint64_t round, result r, uint8_t score) {
+	// Format private key
+	uint64_t carry = 0;
+	uint64_t seedRes[4];
+
+	seedRes[0] = seed[0] + round; 
+	carry = seedRes[0] < round;
+	seedRes[1] = seed[1] + carry; 
+	carry = !seedRes[1];
+	seedRes[2] = seed[2] + carry; 
+	carry = !seedRes[2];
+	seedRes[3] = seed[3] + carry + r.foundId;
+
+	std::ostringstream ss;
+	ss << std::hex << std::setfill('0');
+	ss << std::setw(16) << seedRes[3] << std::setw(16) << seedRes[2] << std::setw(16) << seedRes[1] << std::setw(16) << seedRes[0];
+	const std::string strPrivate = ss.str();
+
+	// Format public key
+	const std::string strPublic = toHex(r.foundHash, 20);
+
+	// Print
+	std::cout << "s Score: " << std::setw(2) << (int)score << " Private: 0x" << strPrivate << ' ';
+
+	std::cout << ": 0x" << strPublic << std::endl;
 }
 
 int main(int argc, char ** argv)
@@ -789,7 +837,7 @@ int main(int argc, char ** argv)
 	{
 		for(int j=0; j<8; j++)
 		{
-			pointsDeltaXHost[i].d[j] = 55;
+			pointsDeltaXHost[i].d[j] = 0;
 		}
 	}
 
@@ -798,7 +846,7 @@ int main(int argc, char ** argv)
 	{
 		for(int j=0; j<8; j++)
 		{
-			prevLambdaHost[i].d[j] = 66;
+			prevLambdaHost[i].d[j] = 0;
 		}
 	}
 
@@ -807,7 +855,7 @@ int main(int argc, char ** argv)
 	{
 		for(int j=0; j<8; j++)
 		{
-			invDataHost[i].d[j] = 44;
+			invDataHost[i].d[j] = 0;
 		}
 	}
 
@@ -847,7 +895,7 @@ int main(int argc, char ** argv)
 
 
 
-	for (int n = 0; n < 100; n++)
+	/*for (int n = 0; n < 100; n++)
 	{
 		printf("Hash no: %d\n", n);
 		for (int i = 0; i < 32; i++)
@@ -855,17 +903,24 @@ int main(int argc, char ** argv)
 			printf("%d ", pArray[n].m_data[i]);
 		}
 		printf("\n");
-	}
+	}*/
 	for (int n = 0; n < 100; n++)
 	{
 		printf("Hash no: %d\n0x", n);
 		const uint8_t* hash = (uint8_t * )invDataHost[n * PROFANITY_INVERSE_SIZE].d;
+		const uint64_t seed[4] = {0, 0, 0, n};
+		result r = {0};
+		r.found = 1;
+		r.foundId = n;
+		memcpy(r.foundHash, hash, 20);
+		printResult(seed, 0, r, 0);
 		for (int i = 0; i < 20; i++)
 		{
 			printf("%02x", hash[i]);
 		}
 		printf("\n");
 	}
+
 
 
 
