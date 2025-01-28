@@ -50,7 +50,7 @@ void test_create3()
     factory* deviceFactory = NULL;
     cudaMalloc(&deviceFactory, sizeof(factory) * data_count);
 
-    printf("Copying data to device %d MB...\n", sizeof(salt) * data_count / 1024 / 1024 + sizeof(factory) * data_count / 1024 / 1024);
+    printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(salt) * data_count / 1024 / 1024 + sizeof(factory) * data_count / 1024 / 1024));
 
     cudaMemcpy(deviceSalt, s, sizeof(salt) * data_count, cudaMemcpyHostToDevice);
     cudaMemcpy(deviceFactory, f, sizeof(factory) * data_count, cudaMemcpyHostToDevice);

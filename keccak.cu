@@ -483,7 +483,7 @@ void test_keccakf()
 
     ethhash* deviceHash = NULL;
     cudaMalloc(&deviceHash, sizeof(ethhash) * ethash_count);
-    printf("Copying data to device %d MB...\n", sizeof(ethhash) * ethash_count / 1024 / 1024);
+    printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(ethhash) * ethash_count / 1024 / 1024));
 
     cudaMemcpy(deviceHash, h, sizeof(ethhash) * ethash_count, cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
