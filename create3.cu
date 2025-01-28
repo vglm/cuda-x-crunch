@@ -103,6 +103,7 @@ __device__ void partial_keccakf(uint64_t *a)
 #undef o
 }
 __constant__ uint8_t g_factory[20] = {0};
+__constant__ salt g_randomSalt = {0};
 
 
 __global__ void create3_host(factory* const factory_data, salt* const salt_data, int rounds)
@@ -186,6 +187,188 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         }
     }
 }
+
+
+__global__ void create3_search(uint64_t* const results, int rounds)
+{
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+    for (int round = 0; round < rounds; round++) {
+        __shared__ ethhash first;
+
+        first.b[0] = 0xff;
+        for (int i = 0; i < 20; i++) {
+            first.b[i + 1] = g_factory[i];
+        }
+        salt salt_data;
+        salt_data.d[0] = id;
+        salt_data.d[1] = round;
+        salt_data.d[2] = g_randomSalt.d[2];
+        salt_data.d[3] = g_randomSalt.d[3];
+        salt_data.d[4] = g_randomSalt.d[4];
+        salt_data.d[5] = g_randomSalt.d[5];
+        salt_data.d[6] = g_randomSalt.d[6];
+        salt_data.d[7] = g_randomSalt.d[7];
+
+        for (int i = 0; i < 32; i++) {
+            first.b[i + 21] = salt_data.b[i];
+        }
+
+        //0x21c35dbe1b344a2488cf3321d6ce542f8e9f305544ff09e4993a62319a497c1f
+
+        first.b[53] = 0x21;
+        first.b[54] = 0xc3;
+        first.b[55] = 0x5d;
+        first.b[56] = 0xbe;
+        first.b[57] = 0x1b;
+        first.b[58] = 0x34;
+        first.b[59] = 0x4a;
+        first.b[60] = 0x24;
+        first.b[61] = 0x88;
+        first.b[62] = 0xcf;
+        first.b[63] = 0x33;
+        first.b[64] = 0x21;
+        first.b[65] = 0xd6;
+        first.b[66] = 0xce;
+        first.b[67] = 0x54;
+        first.b[68] = 0x2f;
+        first.b[69] = 0x8e;
+        first.b[70] = 0x9f;
+        first.b[71] = 0x30;
+        first.b[72] = 0x55;
+        first.b[73] = 0x44;
+        first.b[74] = 0xff;
+        first.b[75] = 0x09;
+        first.b[76] = 0xe4;
+        first.b[77] = 0x99;
+        first.b[78] = 0x3a;
+        first.b[79] = 0x62;
+        first.b[80] = 0x31;
+        first.b[81] = 0x9a;
+        first.b[82] = 0x49;
+        first.b[83] = 0x7c;
+        first.b[84] = 0x1f;
+        first.b[85] = 0x01u;
+        //total length 85
+        for (int i = 86; i < 135; ++i)
+            first.b[i] = 0;
+
+        first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
+        compute_keccak_full(&first);
+
+        first.b[0] = 0xd6u;
+        first.b[1] = 0x94u;
+        for (int i = 12; i < 32; i++) {
+            first.b[i - 10] = first.b[i];
+        }
+
+        first.b[22] = 0x01u;
+        first.b[23] = 0x01u;
+        for (int i = 24; i < 135; ++i)
+            first.b[i] = 0;
+        first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
+
+        partial_keccakf((uint64_t*)&first);
+        if (
+        first.b[12] == 0
+        && first.b[13] == 0
+        && first.b[14] == 0
+        && first.b[15] == 0
+        && first.b[16] == 0
+        && first.b[17] == 0
+        && first.b[18] == 0
+        ) {
+            results[id] = round;
+        }
+    }
+}
+
+__global__ void create3_find(factory* const factory_data, salt* const salt_data, int rounds)
+{
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+    for (int round = 0; round < rounds; round++) {
+        __shared__ ethhash first;
+
+        first.b[0] = 0xff;
+        for (int i = 0; i < 20; i++) {
+            first.b[i + 1] = g_factory[i];
+        }
+        for (int i = 0; i < 32; i++) {
+            first.b[i + 21] = salt_data[id].b[i];
+        }
+
+        //0x21c35dbe1b344a2488cf3321d6ce542f8e9f305544ff09e4993a62319a497c1f
+
+        first.b[53] = 0x21;
+        first.b[54] = 0xc3;
+        first.b[55] = 0x5d;
+        first.b[56] = 0xbe;
+        first.b[57] = 0x1b;
+        first.b[58] = 0x34;
+        first.b[59] = 0x4a;
+        first.b[60] = 0x24;
+        first.b[61] = 0x88;
+        first.b[62] = 0xcf;
+        first.b[63] = 0x33;
+        first.b[64] = 0x21;
+        first.b[65] = 0xd6;
+        first.b[66] = 0xce;
+        first.b[67] = 0x54;
+        first.b[68] = 0x2f;
+        first.b[69] = 0x8e;
+        first.b[70] = 0x9f;
+        first.b[71] = 0x30;
+        first.b[72] = 0x55;
+        first.b[73] = 0x44;
+        first.b[74] = 0xff;
+        first.b[75] = 0x09;
+        first.b[76] = 0xe4;
+        first.b[77] = 0x99;
+        first.b[78] = 0x3a;
+        first.b[79] = 0x62;
+        first.b[80] = 0x31;
+        first.b[81] = 0x9a;
+        first.b[82] = 0x49;
+        first.b[83] = 0x7c;
+        first.b[84] = 0x1f;
+        first.b[85] = 0x01u;
+        //total length 85
+        for (int i = 86; i < 135; ++i)
+            first.b[i] = 0;
+
+        first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
+        compute_keccak_full(&first);
+
+        first.b[0] = 0xd6u;
+        first.b[1] = 0x94u;
+        for (int i = 12; i < 32; i++) {
+            first.b[i - 10] = first.b[i];
+        }
+
+        first.b[22] = 0x01u;
+        first.b[23] = 0x01u;
+        for (int i = 24; i < 135; ++i)
+            first.b[i] = 0;
+        first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
+
+        partial_keccakf((uint64_t*)&first);
+        if (first.b[0] != 0 && round == rounds - 1) {
+            for (int i = 0; i < 20; i++) {
+                factory_data[id].b[i] = first.b[i + 12];
+            }
+        }
+    }
+}
+
 
 
 

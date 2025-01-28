@@ -6,8 +6,10 @@ typedef struct {
     uint8_t b[20];
 } factory;
 
-typedef struct {
+typedef union {
     uint8_t b[32];
+    uint32_t d[8];
+    uint64_t q[4];
 } salt;
 
 
