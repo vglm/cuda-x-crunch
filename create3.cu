@@ -189,6 +189,128 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         }
     }
 }
+__device__ bool is_worth_saving(const uint8_t const* d)
+{
+    uint8_t first_letter = (d[0] & 0xf0) >> 4;
+    uint8_t cc[16];
+
+    for (uint32_t i = 0; i < 16; i++) {
+        cc[i] = 0;
+    }
+
+    uint16_t first_word = ((uint16_t)d[0]) << 8 | (uint16_t)d[1];
+
+    uint32_t int_count = 0;
+
+#pragma unroll
+    for (uint32_t i = 0; i < 20; i += 2) {
+        uint16_t word = ((uint16_t)d[i]) << 8 | (uint16_t)d[i + 1];
+        if (word == first_word) {
+            int_count += 1;
+        }
+        else {
+            break;
+        }
+    }
+
+
+    uint8_t prev_letter = 0xFF;
+    uint8_t group_len = 1;
+    uint8_t group_score = 0;
+    uint8_t leading_score = 0;
+    //uint8_t letter_count_beg = 0;
+#pragma unroll
+    for (uint32_t i = 0; i < 40; ++i) {
+        uint8_t letter;
+        if (i % 2 == 0) {
+            letter = (d[i / 2] & 0xf0) >> 4;
+        }
+        else {
+            letter = (d[i / 2] & 0xf);
+        };
+        //if (letter >= 10 && i <= 12) {
+        //    letter_count_beg += 1;
+        //}
+        cc[letter] += 1;
+        if (letter == prev_letter) {
+            group_len += 1;
+        }
+        else {
+            group_len = 1;
+        }
+        if (group_len == 3) {
+            group_score += 3;
+        }
+        else if (group_len > 3) {
+            group_score += 2;
+        }
+        if (leading_score < 50 && letter == first_letter) {
+            leading_score += 1;
+        }
+        if (leading_score < 50 && letter != first_letter) {
+            leading_score += 50;
+        }
+        prev_letter = letter;
+    }
+    leading_score -= 50;
+
+
+    uint32_t oneScore = 0;
+    for (uint32_t i = 0; i < 16; i++) {
+        if (cc[i] == 0) {
+            oneScore += 1;
+        }
+    }
+
+    if (int_count >= 4) {
+        return true;
+    }
+    if (leading_score >= 7) {
+        return true;
+    }
+    if (group_score >= 24) {
+        return true;
+    }
+    if (oneScore >= 9) {
+        return true;
+    }
+    bool etherscan_sim = true;
+#pragma unroll
+    for (uint32_t i = 0; i < 8; i++) {
+
+        uint8_t left_letter;
+        uint8_t right_letter;
+        if (i % 2 == 0) {
+            left_letter = (d[i / 2] & 0xf0) >> 4;
+            right_letter = (d[(i + 32) / 2] & 0xf0) >> 4;
+        }
+        else {
+            left_letter = (d[i / 2] & 0xf);
+            right_letter = (d[(i + 32) / 2] & 0xf);
+        };
+        if (left_letter != right_letter) {
+            etherscan_sim = false;
+        }
+    }
+
+
+    if (etherscan_sim) {
+        return true;
+    }
+
+    //if (letter_count_beg > 13) {
+    //    return true;
+    //}
+
+
+    if (cc[10] == 0 && cc[11] == 0 && cc[12] == 0 && cc[13] == 0 && cc[14] == 0 && cc[15] == 0) {
+        return true;
+    }
+
+
+
+    return false;
+}
 
 
 __global__ void create3_search(search_result* const results, int rounds)
@@ -275,16 +397,34 @@ __global__ void create3_search(search_result* const results, int rounds)
             first.b[i] = 0;
 
         partial_keccakf((uint64_t*)&first);
-        if (
-            first.b[12] == 0 && first.b[13] == 0 && first.b[14] == 0 && first.b[15] == 0
-        ) {
-            results[id].round = round;
-            results[id].id = id;
 
+        {
+            uint8_t let[40];
             for (int i = 0; i < 20; i++) {
-                results[id].addr[i] = first.b[i + 12];
+				let[2 * i] = first.b[i + 12] / 0x10;
+                let[2 * i + 1] = first.b[i + 12] & 0x0F;
+			}
+
+            int leading_score = 0;
+
+            for (int i = 0; i < 40; i++) {
+				if (let[i] == let[0]) {
+					leading_score += 1;
+				}
+				else {
+					break;
+				}
+			}
+            if (leading_score >= 7) {
+                results[id].round = round;
+                results[id].id = id;
+
+                for (int i = 0; i < 20; i++) {
+                    results[id].addr[i] = first.b[i + 12];
+                }
             }
         }
+
     }
 }
 
@@ -296,8 +436,8 @@ __global__ void create3_search(search_result* const results, int rounds)
 void test_create3()
 {
     const int kernel_group_size = 256;
-    const int data_count = 2500 * kernel_group_size;
-    printf("Generating test data %d...\n", data_count);
+    const uint64_t data_count = 2500 * kernel_group_size;
+    printf("Generating test data %lld...\n", data_count);
 
 
     salt* s = new salt[data_count]();
@@ -350,7 +490,7 @@ void test_create3()
     printf("Running keccak kernel...\n");
     auto start = std::chrono::high_resolution_clock::now();
     const uint64_t current_time = time(NULL);
-    int64_t rounds = 1100;
+    int rounds = 1100;
     create3_host<<<data_count / kernel_group_size, kernel_group_size>>>(deviceFactory, deviceSalt, rounds);
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
@@ -432,24 +572,28 @@ void create3_data_init(const char* factory, create3_search_data *init_data)
     init_data->kernel_groups = 10000;
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
+    printf("Generating test data %lld...\n", sizeof(search_result));
     cudaMalloc(&init_data->device_result, sizeof(search_result) * data_count);
     init_data->host_result = new search_result[data_count]();
     memset(init_data->host_result, 0, sizeof(search_result) * data_count);
 }
+
+
+
 
 void create3_search(create3_search_data *init_data)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
     const int kernel_group_size = init_data->kernel_group_size;
-    const int data_count = init_data->kernel_groups * kernel_group_size;
-    printf("Generating test data %d...\n", data_count);
+    const uint64_t data_count = init_data->kernel_groups * kernel_group_size;
+    printf("Generating test data %lld...\n", data_count);
 
     load_factory_to_device(init_data->factory);
 
     salt randomSalt;
 
-    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    unsigned long long int seed = (unsigned long long int)std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937_64 generator(seed);
 
 
@@ -473,8 +617,7 @@ void create3_search(create3_search_data *init_data)
         exit(1);
     }
     printf("Running keccak kernel...\n");
-    int64_t rounds = 2000;
-    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(init_data->device_result, rounds);
+    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(init_data->device_result, static_cast<int>(init_data->rounds));
 
 
     printf("Copying data back...\n");
@@ -527,8 +670,8 @@ void create3_search(create3_search_data *init_data)
     // Output the duration
     std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
 
-    printf("Addresses computed: %lld\n", rounds * data_count);
-    printf("Compute MH: %f MH/s\n", (double)rounds * data_count / duration.count() * 1000.0);
+    printf("Addresses computed: %lld\n", init_data->rounds * data_count);
+    printf("Compute MH: %f MH/s\n", (double)init_data->rounds * data_count / duration.count() * 1000.0);
 
 
 }
