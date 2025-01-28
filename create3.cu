@@ -189,129 +189,6 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         }
     }
 }
-__device__ bool is_worth_saving(const uint8_t const* d)
-{
-    uint8_t first_letter = (d[0] & 0xf0) >> 4;
-    uint8_t cc[16];
-
-    for (uint32_t i = 0; i < 16; i++) {
-        cc[i] = 0;
-    }
-
-    uint16_t first_word = ((uint16_t)d[0]) << 8 | (uint16_t)d[1];
-
-    uint32_t int_count = 0;
-
-#pragma unroll
-    for (uint32_t i = 0; i < 20; i += 2) {
-        uint16_t word = ((uint16_t)d[i]) << 8 | (uint16_t)d[i + 1];
-        if (word == first_word) {
-            int_count += 1;
-        }
-        else {
-            break;
-        }
-    }
-
-
-    uint8_t prev_letter = 0xFF;
-    uint8_t group_len = 1;
-    uint8_t group_score = 0;
-    uint8_t leading_score = 0;
-    //uint8_t letter_count_beg = 0;
-#pragma unroll
-    for (uint32_t i = 0; i < 40; ++i) {
-        uint8_t letter;
-        if (i % 2 == 0) {
-            letter = (d[i / 2] & 0xf0) >> 4;
-        }
-        else {
-            letter = (d[i / 2] & 0xf);
-        };
-        //if (letter >= 10 && i <= 12) {
-        //    letter_count_beg += 1;
-        //}
-        cc[letter] += 1;
-        if (letter == prev_letter) {
-            group_len += 1;
-        }
-        else {
-            group_len = 1;
-        }
-        if (group_len == 3) {
-            group_score += 3;
-        }
-        else if (group_len > 3) {
-            group_score += 2;
-        }
-        if (leading_score < 50 && letter == first_letter) {
-            leading_score += 1;
-        }
-        if (leading_score < 50 && letter != first_letter) {
-            leading_score += 50;
-        }
-        prev_letter = letter;
-    }
-    leading_score -= 50;
-
-
-    uint32_t oneScore = 0;
-    for (uint32_t i = 0; i < 16; i++) {
-        if (cc[i] == 0) {
-            oneScore += 1;
-        }
-    }
-
-    if (int_count >= 4) {
-        return true;
-    }
-    if (leading_score >= 7) {
-        return true;
-    }
-    if (group_score >= 24) {
-        return true;
-    }
-    if (oneScore >= 9) {
-        return true;
-    }
-    bool etherscan_sim = true;
-#pragma unroll
-    for (uint32_t i = 0; i < 8; i++) {
-
-        uint8_t left_letter;
-        uint8_t right_letter;
-        if (i % 2 == 0) {
-            left_letter = (d[i / 2] & 0xf0) >> 4;
-            right_letter = (d[(i + 32) / 2] & 0xf0) >> 4;
-        }
-        else {
-            left_letter = (d[i / 2] & 0xf);
-            right_letter = (d[(i + 32) / 2] & 0xf);
-        };
-        if (left_letter != right_letter) {
-            etherscan_sim = false;
-        }
-    }
-
-
-    if (etherscan_sim) {
-        return true;
-    }
-
-    //if (letter_count_beg > 13) {
-    //    return true;
-    //}
-
-
-    if (cc[10] == 0 && cc[11] == 0 && cc[12] == 0 && cc[13] == 0 && cc[14] == 0 && cc[15] == 0) {
-        return true;
-    }
-
-
-
-    return false;
-}
-
 
 __global__ void create3_search(search_result* const results, int rounds)
 {
@@ -399,23 +276,40 @@ __global__ void create3_search(search_result* const results, int rounds)
         partial_keccakf((uint64_t*)&first);
 
         {
-            uint8_t let[40];
+            uint8_t let_full[40];
             for (int i = 0; i < 20; i++) {
-				let[2 * i] = first.b[i + 12] / 0x10;
-                let[2 * i + 1] = first.b[i + 12] & 0x0F;
-			}
+                let_full[2 * i] = (first.b[12 + i] >> 4) & 0x0f;
+                let_full[2 * i + 1] = first.b[12 + i] & 0x0f;
+            }
+            
 
             int leading_score = 0;
+            int group_score = 0;
+            int letter_score = 0;
+            int number_score = 0;
 
+            uint8_t first_letter = let_full[0];
             for (int i = 0; i < 40; i++) {
-				if (let[i] == let[0]) {
-					leading_score += 1;
-				}
-				else {
-					break;
-				}
-			}
-            if (leading_score >= 7) {
+                uint8_t letter = let_full[i];
+                if (leading_score < 50 && letter == first_letter) {
+                    leading_score += 1;
+                }
+                if (leading_score < 50 && letter != first_letter) {
+                    leading_score += 50;
+                }
+                if (i > 0 && letter == let_full[i - 1]) {
+                    group_score += 1;
+                }
+                if (letter >= 10) {
+                    letter_score += 1;
+                }
+                if (letter < 10) {
+                    number_score += 1;
+                }
+            }
+            leading_score -= 50;
+
+            if (group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40) {
                 results[id].round = round;
                 results[id].id = id;
 
@@ -423,6 +317,7 @@ __global__ void create3_search(search_result* const results, int rounds)
                     results[id].addr[i] = first.b[i + 12];
                 }
             }
+            
         }
 
     }
@@ -617,7 +512,7 @@ void create3_search(create3_search_data *init_data)
         exit(1);
     }
     printf("Running keccak kernel...\n");
-    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(init_data->device_result, static_cast<int>(init_data->rounds));
+    create3_search<<<(int)(data_count / kernel_group_size), kernel_group_size>>>(init_data->device_result, (int)(init_data->rounds));
 
 
     printf("Copying data back...\n");
