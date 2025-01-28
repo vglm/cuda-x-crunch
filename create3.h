@@ -20,7 +20,8 @@ typedef struct {
     int kernel_groups;
     search_result * device_result;
     search_result * host_result;
-
+    uint64_t total_compute;
+    uint64_t time_started;
 } create3_search_data;
 
 

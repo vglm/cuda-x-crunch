@@ -38,7 +38,7 @@
 #include <iostream>
 #include <sstream>
 #include <chrono>
-
+#include <csignal>
 
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
@@ -384,8 +384,19 @@ PublicKeyPart hexStringToUint64(const std::string& hexStr) {
     return result;
 }
 
+bool g_exiting = false;
+// Signal handler function
+void signalHandler(int signal) {
+	if (signal == SIGINT) {
+		std::cout << "\nCtrl + C detected. Exiting gracefully..." << std::endl;
+		g_exiting = true;
+	}
+}
+
 int main(int argc, char ** argv)
 {
+	std::signal(SIGINT, signalHandler);
+
     ArgParser argp(argc, argv);
     bool bHelp = false;
     bool bModeBenchmark = false;
@@ -444,7 +455,10 @@ int main(int argc, char ** argv)
     }
 	create3_search_data data = { 0 };
 	create3_data_init("9e3f8eae49e442a323ef2094f277bf62752e6995", &data);
-    for (size_t i = 0; i < 10; i++) {
+    for (size_t i = 0; i < 1000000000; i++) {
+		if (g_exiting) {
+			break;
+		}
         create3_search(&data);
     }
     create3_data_destroy(&data);

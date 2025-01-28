@@ -113,7 +113,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     for (int round = 0; round < rounds; round++) {
-        __shared__ ethhash first;
+        ethhash first;
 
         first.b[0] = 0xff;
         for (int i = 0; i < 20; i++) {
@@ -195,7 +195,7 @@ __global__ void create3_search(search_result* const results, int rounds)
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     for (int round = 1; round <= rounds; round++) {
-        __shared__ ethhash first;
+        ethhash first;
 
         first.b[0] = 0xff;
         for (int i = 0; i < 20; i++) {
@@ -287,8 +287,17 @@ __global__ void create3_search(search_result* const results, int rounds)
             int group_score = 0;
             int letter_score = 0;
             int number_score = 0;
-
+            int etherscan_score = 0;
+            int pattern_score = 0;
             uint8_t first_letter = let_full[0];
+            for (int i = 0; i < 40; i += 4) {
+                if (*(uint32_t*)&let_full[0] == *(uint32_t*)&let_full[i]) {
+                    pattern_score += 1;
+                }
+                else {
+                    break;
+                }
+            }
             for (int i = 0; i < 40; i++) {
                 uint8_t letter = let_full[i];
                 if (leading_score < 50 && letter == first_letter) {
@@ -307,9 +316,14 @@ __global__ void create3_search(search_result* const results, int rounds)
                     number_score += 1;
                 }
             }
+            for (int i = 0; i < 8; i++) {
+                if (let_full[i] == let_full[i + 32]) {
+                    etherscan_score += 1;
+                }
+            }
             leading_score -= 50;
 
-            if (group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40) {
+            if (pattern_score >= 3 || etherscan_score >= 8 || group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40) {
                 results[id].round = round;
                 results[id].id = id;
 
@@ -465,6 +479,8 @@ void create3_data_init(const char* factory, create3_search_data *init_data)
     init_data->rounds = 2000;
     init_data->kernel_group_size = 64;
     init_data->kernel_groups = 10000;
+    init_data->total_compute = 0;
+    init_data->time_started = time(NULL);
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
     printf("Generating test data %lld...\n", sizeof(search_result));
@@ -565,8 +581,11 @@ void create3_search(create3_search_data *init_data)
     // Output the duration
     std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
 
+    init_data->total_compute += init_data->rounds * data_count;
     printf("Addresses computed: %lld\n", init_data->rounds * data_count);
     printf("Compute MH: %f MH/s\n", (double)init_data->rounds * data_count / duration.count() * 1000.0);
+    printf("Total compute: %lld GH\n", init_data->total_compute / 1000 / 1000 / 1000);
+    printf("Total compute MH: %02f MH/s\n", (double)init_data->total_compute / (time(NULL) - init_data->time_started) / 1000 / 1000);
 
 
 }
