@@ -102,6 +102,8 @@ __device__ void partial_keccakf(uint64_t *a)
   o[7] ^= ((~o[9]) & o[1]);
 #undef o
 }
+__constant__ uint8_t g_factory[20] = {0};
+
 
 __global__ void create3_host(factory* const factory_data, salt* const salt_data, int rounds)
 {
@@ -112,7 +114,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 
         first.b[0] = 0xff;
         for (int i = 0; i < 20; i++) {
-            first.b[i + 1] = factory_data[id].b[i];
+            first.b[i + 1] = g_factory[i];
         }
         for (int i = 0; i < 32; i++) {
             first.b[i + 21] = salt_data[id].b[i];
@@ -186,6 +188,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 
 
+
 void test_create3()
 {
     const int kernel_group_size = 256;
@@ -221,7 +224,7 @@ void test_create3()
         }
     }
 
-
+    cudaMemcpyToSymbol(g_factory, &f[0].b, 20);
 
     salt* deviceSalt = NULL;
     cudaMalloc(&deviceSalt, sizeof(salt) * data_count);
