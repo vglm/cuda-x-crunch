@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "keccak.h"
+#include "create3.h"
 #include "help.hpp"
 #include "utils.hpp"
 #include "ArgParser.hpp"
@@ -386,75 +387,79 @@ PublicKeyPart hexStringToUint64(const std::string& hexStr) {
 
 int main(int argc, char ** argv)
 {
+    ArgParser argp(argc, argv);
+    bool bHelp = false;
+    bool bModeBenchmark = false;
+    bool bModeZeros = false;
+    bool bModeZeroBytes = false;
+    bool bModeLetters = false;
+    bool bModeNumbers = false;
+    std::string strModeLeading;
+    std::string strModeMatching;
+    std::string strPublicKey;
+    bool bModeLeadingRange = false;
+    bool bModeRange = false;
+    bool bModeMirror = false;
+    bool bModeDoubles = false;
+    int rangeMin = 0;
+    int rangeMax = 0;
+    std::vector<size_t> vDeviceSkipIndex;
+    size_t worksizeLocal = 64;
+    size_t worksizeMax = 0; // Will be automatically determined later if not overriden by user
+    bool bNoCache = false;
+    size_t inverseSize = 255;
+    size_t inverseMultiple = 16384;
+    bool bMineContract = false;
 
-		ArgParser argp(argc, argv);
-		bool bHelp = false;
-		bool bModeBenchmark = false;
-		bool bModeZeros = false;
-		bool bModeZeroBytes = false;
-		bool bModeLetters = false;
-		bool bModeNumbers = false;
-		std::string strModeLeading;
-		std::string strModeMatching;
-		std::string strPublicKey;
-		bool bModeLeadingRange = false;
-		bool bModeRange = false;
-		bool bModeMirror = false;
-		bool bModeDoubles = false;
-		int rangeMin = 0;
-		int rangeMax = 0;
-		std::vector<size_t> vDeviceSkipIndex;
-		size_t worksizeLocal = 64;
-		size_t worksizeMax = 0; // Will be automatically determined later if not overriden by user
-		bool bNoCache = false;
-		size_t inverseSize = 255;
-		size_t inverseMultiple = 16384;
-		bool bMineContract = false;
+    argp.addSwitch('h', "help", bHelp);
+    argp.addSwitch('0', "benchmark", bModeBenchmark);
+    argp.addSwitch('1', "zeros", bModeZeros);
+    argp.addSwitch('2', "letters", bModeLetters);
+    argp.addSwitch('3', "numbers", bModeNumbers);
+    argp.addSwitch('4', "leading", strModeLeading);
+    argp.addSwitch('5', "matching", strModeMatching);
+    argp.addSwitch('6', "leading-range", bModeLeadingRange);
+    argp.addSwitch('7', "range", bModeRange);
+    argp.addSwitch('8', "mirror", bModeMirror);
+    argp.addSwitch('9', "leading-doubles", bModeDoubles);
+    argp.addSwitch('m', "min", rangeMin);
+    argp.addSwitch('M', "max", rangeMax);
+    argp.addMultiSwitch('s', "skip", vDeviceSkipIndex);
+    argp.addSwitch('w', "work", worksizeLocal);
+    argp.addSwitch('W', "work-max", worksizeMax);
+    argp.addSwitch('n', "no-cache", bNoCache);
+    argp.addSwitch('i', "inverse-size", inverseSize);
+    argp.addSwitch('I', "inverse-multiple", inverseMultiple);
+    argp.addSwitch('c', "contract", bMineContract);
+    argp.addSwitch('z', "publicKey", strPublicKey);
+    argp.addSwitch('b', "zero-bytes", bModeZeroBytes);
 
-		argp.addSwitch('h', "help", bHelp);
-		argp.addSwitch('0', "benchmark", bModeBenchmark);
-		argp.addSwitch('1', "zeros", bModeZeros);
-		argp.addSwitch('2', "letters", bModeLetters);
-		argp.addSwitch('3', "numbers", bModeNumbers);
-		argp.addSwitch('4', "leading", strModeLeading);
-		argp.addSwitch('5', "matching", strModeMatching);
-		argp.addSwitch('6', "leading-range", bModeLeadingRange);
-		argp.addSwitch('7', "range", bModeRange);
-		argp.addSwitch('8', "mirror", bModeMirror);
-		argp.addSwitch('9', "leading-doubles", bModeDoubles);
-		argp.addSwitch('m', "min", rangeMin);
-		argp.addSwitch('M', "max", rangeMax);
-		argp.addMultiSwitch('s', "skip", vDeviceSkipIndex);
-		argp.addSwitch('w', "work", worksizeLocal);
-		argp.addSwitch('W', "work-max", worksizeMax);
-		argp.addSwitch('n', "no-cache", bNoCache);
-		argp.addSwitch('i', "inverse-size", inverseSize);
-		argp.addSwitch('I', "inverse-multiple", inverseMultiple);
-		argp.addSwitch('c', "contract", bMineContract);
-		argp.addSwitch('z', "publicKey", strPublicKey);
-		argp.addSwitch('b', "zero-bytes", bModeZeroBytes);
+    if (!argp.parse()) {
+        std::cout << "error: bad arguments, -h for help" << std::endl;
+        return 1;
+    }
+    if (bModeBenchmark) {
+        test_create3();
+        return 1;
+    }
 
-		if (!argp.parse()) {
-			std::cout << "error: bad arguments, -h for help" << std::endl;
-			return 1;
-		}
-        if (bHelp) {
-            std::cout << g_strHelp << std::endl;
-            return 0;
-        }
-		if (strPublicKey.length() == 0) {
-			std::cout << "error: this tool requires your public key to derive it's private key security" << std::endl;
-			return 1;
-		}
-        strPublicKey = string_replace(strPublicKey, "0x", "");
-        if (strPublicKey.length() != 128) {
-            std::cout << "error: public key must be 128 hexadecimal characters long" << std::endl;
-            return 1;
-        }
+    if (bHelp) {
+        std::cout << g_strHelp << std::endl;
+        return 0;
+    }
+    if (strPublicKey.length() == 0) {
+        std::cout << "error: this tool requires your public key to derive it's private key security" << std::endl;
+        return 1;
+    }
+    strPublicKey = string_replace(strPublicKey, "0x", "");
+    if (strPublicKey.length() != 128) {
+        std::cout << "error: public key must be 128 hexadecimal characters long" << std::endl;
+        return 1;
+    }
 
 
-        PublicKeyPart publicKeyX = hexStringToUint64(strPublicKey.substr(0, 64));
-        PublicKeyPart publicKeyY = hexStringToUint64(strPublicKey.substr(64, 64));
+    PublicKeyPart publicKeyX = hexStringToUint64(strPublicKey.substr(0, 64));
+    PublicKeyPart publicKeyY = hexStringToUint64(strPublicKey.substr(64, 64));
 
 
 
@@ -479,10 +484,6 @@ int main(int argc, char ** argv)
 	cudaMalloc(&pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 	cudaMalloc(&invData, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
-
-    test_keccakf();
-
-    return 1;
 
 
 

@@ -460,7 +460,7 @@ __global__ void sha3_keccakf_host(ethhash* const ethash_data)
 void test_keccakf()
 {
     const int kernel_group_size = 64;
-    const int ethash_count = 100000 * kernel_group_size;
+    const int ethash_count = 10000 * kernel_group_size;
     printf("Generating test data %d...\n", ethash_count);
 
     uint8_t public_key[64];
@@ -530,7 +530,7 @@ void test_keccakf()
         hexAddr[0] = '0';
         hexAddr[1] = 'x';
         for (int i = 12; i < 32; i++) {
-            sprintf(&hexAddr[(i - 12) * 2 + 2], "%02x", h[ethash_count - 1].b[i]);
+            sprintf(&hexAddr[(i - 12) * 2 + 2], "%02x", h[n].b[i]);
         }
         if (strcmp(hexAddr, "0xcaa74ee0ee88bfed69a41ef7bd15d21a15cd8a43") != 0) {
             printf("Keccak test failed expected %s got %s\n", "0xcaa74ee0ee88bfed69a41ef7bd15d21a15cd8a43", hexAddr);

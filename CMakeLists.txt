@@ -12,6 +12,8 @@ add_library(particles STATIC
   keccak.h
   particle.cu
   particle.h
+  create3.cu
+  create3.h
   precomp.cpp
   precomp.hpp
   types.hpp

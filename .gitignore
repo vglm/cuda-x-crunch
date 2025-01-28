@@ -10,3 +10,7 @@
 /*.vcxproj*
 /CTestTestfile.cmake
 /Release/
+/*.sln
+/*.cmake
+/profanity_cuda.dir
+/*.tcl
