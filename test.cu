@@ -437,10 +437,15 @@ int main(int argc, char ** argv)
         std::cout << "error: bad arguments, -h for help" << std::endl;
         return 1;
     }
+
     if (bModeBenchmark) {
         test_create3();
         return 1;
     }
+    for (size_t i = 0; i < 1000000000; i++) {
+        create3_search("9e3f8eae49e442a323ef2094f277bf62752e6995");
+    }
+    return 1;
 
     if (bHelp) {
         std::cout << g_strHelp << std::endl;

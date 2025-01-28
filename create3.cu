@@ -1,4 +1,6 @@
 #include "create3.h"
+#include <random>
+#include <chrono>
 
 #define ROL(X, S) (((X) << S) | ((X) >> (64 - S)))
 
@@ -189,11 +191,11 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 
 
-__global__ void create3_search(uint64_t* const results, int rounds)
+__global__ void create3_search(search_result* const results, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
-    for (int round = 0; round < rounds; round++) {
+    for (int round = 1; round <= rounds; round++) {
         __shared__ ethhash first;
 
         first.b[0] = 0xff;
@@ -274,100 +276,19 @@ __global__ void create3_search(uint64_t* const results, int rounds)
 
         partial_keccakf((uint64_t*)&first);
         if (
-        first.b[12] == 0
-        && first.b[13] == 0
-        && first.b[14] == 0
-        && first.b[15] == 0
-        && first.b[16] == 0
-        && first.b[17] == 0
-        && first.b[18] == 0
+            first.b[12] == 0 && first.b[13] == 0 && first.b[14] == 0 && first.b[15] == 0
         ) {
-            results[id] = round;
-        }
-    }
-}
+            results[id].round = round;
+            results[id].id = id;
 
-__global__ void create3_find(factory* const factory_data, salt* const salt_data, int rounds)
-{
-	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
-
-    for (int round = 0; round < rounds; round++) {
-        __shared__ ethhash first;
-
-        first.b[0] = 0xff;
-        for (int i = 0; i < 20; i++) {
-            first.b[i + 1] = g_factory[i];
-        }
-        for (int i = 0; i < 32; i++) {
-            first.b[i + 21] = salt_data[id].b[i];
-        }
-
-        //0x21c35dbe1b344a2488cf3321d6ce542f8e9f305544ff09e4993a62319a497c1f
-
-        first.b[53] = 0x21;
-        first.b[54] = 0xc3;
-        first.b[55] = 0x5d;
-        first.b[56] = 0xbe;
-        first.b[57] = 0x1b;
-        first.b[58] = 0x34;
-        first.b[59] = 0x4a;
-        first.b[60] = 0x24;
-        first.b[61] = 0x88;
-        first.b[62] = 0xcf;
-        first.b[63] = 0x33;
-        first.b[64] = 0x21;
-        first.b[65] = 0xd6;
-        first.b[66] = 0xce;
-        first.b[67] = 0x54;
-        first.b[68] = 0x2f;
-        first.b[69] = 0x8e;
-        first.b[70] = 0x9f;
-        first.b[71] = 0x30;
-        first.b[72] = 0x55;
-        first.b[73] = 0x44;
-        first.b[74] = 0xff;
-        first.b[75] = 0x09;
-        first.b[76] = 0xe4;
-        first.b[77] = 0x99;
-        first.b[78] = 0x3a;
-        first.b[79] = 0x62;
-        first.b[80] = 0x31;
-        first.b[81] = 0x9a;
-        first.b[82] = 0x49;
-        first.b[83] = 0x7c;
-        first.b[84] = 0x1f;
-        first.b[85] = 0x01u;
-        //total length 85
-        for (int i = 86; i < 135; ++i)
-            first.b[i] = 0;
-
-        first.b[135] = 0x80u;
-        for (int i = 136; i < 200; ++i)
-            first.b[i] = 0;
-        compute_keccak_full(&first);
-
-        first.b[0] = 0xd6u;
-        first.b[1] = 0x94u;
-        for (int i = 12; i < 32; i++) {
-            first.b[i - 10] = first.b[i];
-        }
-
-        first.b[22] = 0x01u;
-        first.b[23] = 0x01u;
-        for (int i = 24; i < 135; ++i)
-            first.b[i] = 0;
-        first.b[135] = 0x80u;
-        for (int i = 136; i < 200; ++i)
-            first.b[i] = 0;
-
-        partial_keccakf((uint64_t*)&first);
-        if (first.b[0] != 0 && round == rounds - 1) {
             for (int i = 0; i < 20; i++) {
-                factory_data[id].b[i] = first.b[i + 12];
+                results[id].addr[i] = first.b[i + 12];
             }
         }
     }
 }
+
+
 
 
 
@@ -484,4 +405,125 @@ void test_create3()
     printf("Freeing host memory...\n");
     delete[] f;
     delete[] s;
+}
+
+void load_factory_to_device(const char* factory) {
+    uint8_t factory_bytes[20];
+    for (int i = 0; i < 20; i++) {
+        unsigned int byte;
+        sscanf(factory + i * 2, "%2x", &byte); // Parse 2-character hex string
+        factory_bytes[i] = (uint8_t)(byte);
+    }
+    cudaMemcpyToSymbol(g_factory, &factory_bytes, 20);
+}
+
+void create3_search(const char* factory)
+{
+    const int kernel_group_size = 64;
+    const int data_count = 10000 * kernel_group_size;
+    printf("Generating test data %d...\n", data_count);
+
+    load_factory_to_device(factory);
+
+    auto randomSalt = new salt();
+
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937_64 generator(seed);
+
+
+    randomSalt->q[0] = generator();
+    randomSalt->q[1] = generator();
+    randomSalt->q[2] = generator();
+    randomSalt->q[3] = generator();
+
+    cudaMemcpyToSymbol(g_randomSalt, &randomSalt->b, 32);
+
+    search_result* f = new search_result[data_count]();
+    memset(f, 0, sizeof(search_result) * data_count);
+
+
+    search_result* deviceResult = NULL;
+    cudaMalloc(&deviceResult, sizeof(search_result) * data_count);
+
+    printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
+
+    cudaMemcpy(deviceResult, f, sizeof(search_result) * data_count, cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+
+    auto error = cudaGetLastError();
+    if (error != cudaSuccess)
+    {
+        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
+        exit(1);
+    }
+    printf("Running keccak kernel...\n");
+    auto start = std::chrono::high_resolution_clock::now();
+    const uint64_t current_time = time(NULL);
+    int64_t rounds = 2000;
+    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(deviceResult, rounds);
+    cudaDeviceSynchronize();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+
+    // Output the duration
+    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
+
+    printf("Addresses computed: %lld\n", rounds * data_count);
+    printf("Compute MH: %f MH/s\n", (double)rounds * data_count / duration.count() * 1000.0);
+    printf("Start data factory: ");
+    for (int i = 0; i < 20; i++) {
+        printf("%02x", f[0].addr[i]);
+    }
+    printf("\n");
+
+    printf("Copying data back...\n");
+    cudaMemcpy(f, deviceResult, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
+
+
+    printf("Freeing device memory...\n");
+    cudaFree(deviceResult);
+
+    error = cudaGetLastError();
+    if (error != cudaSuccess)
+    {
+        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
+        exit(1);
+    }
+
+    printf("Checking results...\n");
+    char hexAddr[43] = { 0 };
+    for (int n = 0; n < data_count; n++) {
+        if (f[n].round != 0) {
+            salt newSalt;
+            newSalt.q[0] = randomSalt->q[0];
+            newSalt.q[1] = randomSalt->q[1];
+            newSalt.q[2] = randomSalt->q[2];
+            newSalt.q[3] = randomSalt->q[3];
+            newSalt.d[0] = f[n].id;
+            newSalt.d[1] = f[n].round;
+            hexAddr[0] = '0';
+            hexAddr[1] = 'x';
+            for (int i = 0; i < 20; i++) {
+                sprintf(&hexAddr[(i) * 2 + 2], "%02x", f[n].addr[i]);
+            }
+            printf("Found address %s at round %d and id %d\n", hexAddr, f[n].round, f[n].id);
+            char fileName[65000] = {0};
+            sprintf(fileName, "output/addr_%s.csv", hexAddr);
+
+            FILE *out_file = fopen(fileName, "w");
+            char salt[65] = {0};
+            for (int i = 0; i < 32; i++) {
+                sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
+            }
+            salt[64] = 0;
+            fprintf(out_file, "0x%s,%s,0x%s,%s_%s", salt, hexAddr, factory, "cuda_miner", "0.1");
+
+            fclose(out_file);
+
+        }
+    }
+
+    printf("Freeing host memory...\n");
+    delete[] f;
+
 }
