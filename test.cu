@@ -27,6 +27,7 @@
 #include "help.hpp"
 #include "utils.hpp"
 #include "ArgParser.hpp"
+#include "debug_utils.hpp"
 #include "particle.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -35,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <chrono>
 
 typedef union {
 	uint8_t b[200];
@@ -80,7 +82,7 @@ __device__ mp_word mp_sub(mp_number * const r, const mp_number * const a, const 
 
 // Multiprecision subtraction of the modulus saved in mod. Underflow signalled via return value.
 __device__ mp_word mp_sub_mod(mp_number * const r) {
-	mp_number mod = { {0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
+	mp_number mod = { {0xfffffc2fU, 0xfffffffeU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU} };
 
 	mp_word t, c = 0;
 
@@ -137,14 +139,14 @@ __device__ void mp_mod_sub_const(mp_number* const r, const mp_number* const a, c
 __device__ void mp_mod_sub_gx(mp_number* const r, const mp_number* const a) {
 	mp_word i, t, c = 0;
 
-	t = a->d[0] - 0x16f81798; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
-	t = a->d[1] - 0x59f2815b - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
-	t = a->d[2] - 0x2dce28d9 - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
-	t = a->d[3] - 0x029bfcdb - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
-	t = a->d[4] - 0xce870b07 - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
-	t = a->d[5] - 0x55a06295 - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
-	t = a->d[6] - 0xf9dcbbac - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
-	t = a->d[7] - 0x79be667e - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
+	t = a->d[0] - 0x16f81798U; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
+	t = a->d[1] - 0x59f2815bU - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
+	t = a->d[2] - 0x2dce28d9U - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
+	t = a->d[3] - 0x029bfcdbU - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
+	t = a->d[4] - 0xce870b07U - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
+	t = a->d[5] - 0x55a06295U - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
+	t = a->d[6] - 0xf9dcbbacU - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
+	t = a->d[7] - 0x79be667eU - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
 
 	if (c) {
 		c = 0;
@@ -160,14 +162,14 @@ __device__ void mp_mod_sub_gx(mp_number* const r, const mp_number* const a) {
 __device__ void mp_mod_sub_gy(mp_number* const r, const mp_number* const a) {
 	mp_word i, t, c = 0;
 
-	t = a->d[0] - 0xfb10d4b8; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
-	t = a->d[1] - 0x9c47d08f - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
-	t = a->d[2] - 0xa6855419 - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
-	t = a->d[3] - 0xfd17b448 - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
-	t = a->d[4] - 0x0e1108a8 - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
-	t = a->d[5] - 0x5da4fbfc - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
-	t = a->d[6] - 0x26a3c465 - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
-	t = a->d[7] - 0x483ada77 - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
+	t = a->d[0] - 0xfb10d4b8U; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
+	t = a->d[1] - 0x9c47d08fU - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
+	t = a->d[2] - 0xa6855419U - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
+	t = a->d[3] - 0xfd17b448U - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
+	t = a->d[4] - 0x0e1108a8U - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
+	t = a->d[5] - 0x5da4fbfcU - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
+	t = a->d[6] - 0x26a3c465U - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
+	t = a->d[7] - 0x483ada77U - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
 
 	if (c) {
 		c = 0;
@@ -319,7 +321,7 @@ __device__ void mp_mod_mul(mp_number* const r, const mp_number* const X, const m
 	*r = Z;
 }
 
-// Modular inversion of a number. 
+// Modular inversion of a number.
 __device__ void mp_mod_inverse(mp_number* const r) {
 	mp_number A = { { 1 } };
 	mp_number C = { { 0 } };
@@ -428,9 +430,9 @@ __device__ void profanity_init_seed(const point* const precomp, point* const p, 
 #define PROFANITY_INVERSE_SIZE 255
 
 
-__device__ void profanity_init(int i, const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const uint64_t seed[4], const uint64_t seedX[4], const uint64_t seedY[4]) {
-	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE + i;
-	
+__device__ void profanity_init(const point* const precomp, mp_number* const pDeltaX, mp_number* const pPrevLambda, result* const pResult, const uint64_t seed[4], const uint64_t seedX[4], const uint64_t seedY[4]) {
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
 	/*
 	point p = {
 		.x = {.d = {
@@ -476,6 +478,7 @@ __device__ void profanity_init(int i, const point* const precomp, mp_number* con
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, seed[1]);
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, seed[2]);
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, seed[3] + id);
+
 	point_add(&p, &p, &p_random);
 
 	// Calculate current lambda in this point
@@ -503,12 +506,12 @@ __device__ void profanity_init(int i, const point* const precomp, mp_number* con
 
 // This kernel calculates several modular inversions at once with just one inverse.
 // It's an implementation of Algorithm 2.11 from Modern Computer Arithmetic:
-// https://members.loria.fr/PZimmermann/mca/pub226.html 
+// https://members.loria.fr/PZimmermann/mca/pub226.html
 //
 // My RX 480 is very sensitive to changes in the second loop and sometimes I have
 // to make seemingly non-functional changes to the code to make the compiler
 // generate the most optimized version.
-__device__ void profanity_inverse(const mp_number* const pDeltaX, mp_number* const pInverse) {
+__global__ void profanity_inverse(const mp_number* const pDeltaX, mp_number* const pInverse) {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE;
 
 	// negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
@@ -549,8 +552,8 @@ __device__ void profanity_inverse(const mp_number* const pDeltaX, mp_number* con
 
 __device__ void sha3_keccakf(ethhash* const h);
 
-__device__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pInverse, mp_number* const pPrevLambda) {
-	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE;
+__global__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pInverse, mp_number* const pPrevLambda) {
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
 	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
 	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
@@ -726,38 +729,85 @@ __device__ uint64_t keccakf_rndc[24] = {
 // Barely a bottleneck. No need to tinker more.
 __device__ void sha3_keccakf(ethhash* const h)
 {
+//04
+//4b90f6d1ab41f09f63f99a67fdcdd5494534c3a3f7d3a012883acc4af5f674b
+//bd9dfa4e853140c516908a62666e292312b0108b5fde5754320e5d57971cc8d
+//80
+    uint64_t * const st = (uint64_t *) h;
 	h->d[33] ^= 0x80000000;
 	uint64_t t0, t1, t2, t3, t4;
 
 	// Unrolling and removing PI stage gave negligable performance on GTX 1070.
 	for (int i = 0; i < 24; ++i) {
-		THETA(h->q[0], h->q[5], h->q[10], h->q[15], h->q[20], h->q[1], h->q[6], h->q[11], h->q[16], h->q[21], h->q[2], h->q[7], h->q[12], h->q[17], h->q[22], h->q[3], h->q[8], h->q[13], h->q[18], h->q[23], h->q[4], h->q[9], h->q[14], h->q[19], h->q[24]);
-		RHOPI(h->q[0], h->q[5], h->q[10], h->q[15], h->q[20], h->q[1], h->q[6], h->q[11], h->q[16], h->q[21], h->q[2], h->q[7], h->q[12], h->q[17], h->q[22], h->q[3], h->q[8], h->q[13], h->q[18], h->q[23], h->q[4], h->q[9], h->q[14], h->q[19], h->q[24]);
-		KHI(h->q[0], h->q[5], h->q[10], h->q[15], h->q[20], h->q[1], h->q[6], h->q[11], h->q[16], h->q[21], h->q[2], h->q[7], h->q[12], h->q[17], h->q[22], h->q[3], h->q[8], h->q[13], h->q[18], h->q[23], h->q[4], h->q[9], h->q[14], h->q[19], h->q[24]);
-		IOTA(h->q[0], keccakf_rndc[i]);
+		THETA(st[0], st[5], st[10], st[15], st[20], st[1], st[6], st[11], st[16], st[21], st[2], st[7], st[12], st[17], st[22], st[3], st[8], st[13], st[18], st[23], st[4], st[9], st[14], st[19], st[24]);
+		RHOPI(st[0], st[5], st[10], st[15], st[20], st[1], st[6], st[11], st[16], st[21], st[2], st[7], st[12], st[17], st[22], st[3], st[8], st[13], st[18], st[23], st[4], st[9], st[14], st[19], st[24]);
+		KHI(st[0], st[5], st[10], st[15], st[20], st[1], st[6], st[11], st[16], st[21], st[2], st[7], st[12], st[17], st[22], st[3], st[8], st[13], st[18], st[23], st[4], st[9], st[14], st[19], st[24]);
+		IOTA(st[0], keccakf_rndc[i]);
 	}
 }
 
+__global__ void sha3_keccakf_host(ethhash* const ethash_data)
+{
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
-__global__ void advanceParticles(float dt, particle * pArray, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse,
-    uint64_t seedX[4], uint64_t seedY[4])
+    sha3_keccakf(&ethash_data[id]);
+}
+
+__global__ void sha3_keccakf_host2(int32_t* const ethash_data)
+{
+	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+    ethhash h = { 0 };
+
+//df5f587d7a24f070e0d289a31f9d40d3856173ef0f163b8a3d735f7e72bab46172b4f18429d1fc3d55d86b1d9adc56f0d2e8f85d664ca6ff2faa195d686f8dd6
+
+    h.d[0] = 0x7d585fdf;
+    h.d[1] = 0x70f0247a;
+    h.d[2] = 0x9da3890d;
+    h.d[3] = 0x85d4409f;
+    h.d[4] = 0xef737685;
+    h.d[5] = 0x3b160fef;
+    h.d[6] = 0x1f9a289d;
+    h.d[7] = 0x61d4ba72;
+    h.d[8] = 0x4f1842b4;
+    h.d[9] = 0x3d1fcd9d;
+    h.d[10] = 0x7e5f733d;
+    h.d[11] = 0x61b4ba72;
+    h.d[12] = 0x6fca64d6;
+    h.d[13] = 0x2f6fca6f;
+    h.d[14] = id / 0xffffffff;
+    h.d[15] = id % 0xffffffff;
+    h.d[16] = 0x00000001;
+    sha3_keccakf(&h);
+
+    ethash_data[id] = h.d[0] ^ h.d[1] ^ h.d[2] ^ h.d[3] ^ h.d[4] ^ h.d[5] ^ h.d[6] ^ h.d[7] ^ h.d[8];
+}
+
+__global__ void advanceParticlesPart1(float dt, particle * pArray, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse,
+    uint64_t seedX1, uint64_t seedX2, uint64_t seedX3, uint64_t seedX4, uint64_t seedY1, uint64_t seedY2, uint64_t seedY3, uint64_t seedY4)
 {
 	uint64_t seed[4];
-	seed[0] = 0x0;
-	seed[1] = 0x0;
-	seed[2] = 0x0;
-	seed[3] = 0;
-
+	seed[0] = 3;
+	seed[1] = 1;
+	seed[2] = 1;
+	seed[3] = 1;
+	uint64_t seedX[4];
+	seedX[0] = seedX1;
+	seedX[1] = seedX2;
+	seedX[2] = seedX3;
+	seedX[3] = seedX4;
+	uint64_t seedY[4];
+	seedY[0] = seedY1;
+	seedY[1] = seedY2;
+	seedY[2] = seedY3;
+	seedY[3] = seedY4;
 	result pResult = { 0 };
 
-	//for (int i = 0; i < PROFANITY_INVERSE_SIZE; i++)
-//	{
-		profanity_init(0, precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seedX, seedY);
-//	}
 
-	//profanity_inverse(pointsDeltaX, pInverse);
-	//profanity_iterate(pointsDeltaX, pInverse, pPrevLambda);
-	//pInverse[(threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE].d[0] = 222222222;
+
+	profanity_init(precomp, pointsDeltaX, pPrevLambda, &pResult, seed, seedX, seedY);
+
+
+	//pInverse[(threadIdx.x + blockIdx.x * blockDim.x) * PROFANITY_INVERSE_SIZE].d[0] = (uint32_t)(seedX1 & 0x00000000FFFFFFFFU);
 }
 
 
@@ -780,11 +830,11 @@ static void printResult(const uint64_t seed[4], uint64_t round, result r, uint8_
 	uint64_t carry = 0;
 	uint64_t seedRes[4];
 
-	seedRes[0] = seed[0] + round; 
+	seedRes[0] = seed[0] + round;
 	carry = seedRes[0] < round;
-	seedRes[1] = seed[1] + carry; 
+	seedRes[1] = seed[1] + carry;
 	carry = !seedRes[1];
-	seedRes[2] = seed[2] + carry; 
+	seedRes[2] = seed[2] + carry;
 	carry = !seedRes[2];
 	seedRes[3] = seed[3] + carry + r.foundId;
 
@@ -924,6 +974,71 @@ int main(int argc, char ** argv)
 	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 	cudaMalloc(&invData, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 
+    printf("Generating test data...\n");
+
+    uint8_t public_key[64];
+    const char* test_public_key = "65b3b3a2d97271fee54c747f796f123e5895a4bc096016fbc5163c8f51084ae8e8cda24b16cc02f0f8a33e8d890d7212d113d2ee33202d416f6401cc7614e85d";
+    for (int i = 0; i < 64; i++) {
+        std::stringstream ss;
+        ss << std::hex << std::string(test_public_key + i * 2, 2);
+        int byte;
+        ss >> byte;
+        public_key[i] = static_cast<uint8_t>(byte);
+    }
+
+    const int ethash_count = 25600000;
+    ethhash* h = new ethhash[ethash_count]();
+    for (int n = 0; n < ethash_count; n++) {
+        for (int i = 0; i < 25; i++) {
+            h[n].q[i] = 0;
+        }
+        memcpy(h[n].b, public_key, 64);
+        h[n].b[64] = 0x01;
+    }
+
+
+    ethhash* deviceHash = NULL;
+    cudaMalloc(&deviceHash, sizeof(ethhash) * ethash_count);
+    printf("Copying data to device...\n");
+
+    cudaMemcpy(deviceHash, h, sizeof(ethhash) * ethash_count, cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+    error = cudaGetLastError();
+	if (error != cudaSuccess)
+  	{
+        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
+        exit(1);
+  	}
+    printf("Running keccak...\n");
+    auto start = std::chrono::high_resolution_clock::now();
+    const uint64_t current_time = time(NULL);
+  	sha3_keccakf_host2<<<ethash_count / 64, 64>>>((int*)deviceHash);
+    cudaDeviceSynchronize();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+
+    // Output the duration
+    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
+
+    printf("Copying data back...\n");
+    cudaMemcpy(h, deviceHash, ethash_count * sizeof(ethhash), cudaMemcpyDeviceToHost);
+    error = cudaGetLastError();
+    if (error != cudaSuccess)
+  	{
+        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
+        exit(1);
+  	}
+
+    printf("Public key: ");
+    for (int i = 12; i < 32; i++) {
+        printf("%02x", h[ethash_count - 1].b[i]);
+    }
+    printf("\n");
+
+    return 1;
+
+
+
 	cudaDeviceSynchronize(); error = cudaGetLastError();
 	if (error != cudaSuccess)
   	{
@@ -972,13 +1087,107 @@ int main(int argc, char ** argv)
   	}
 
 	float dt = (float)rand()/(float) RAND_MAX; // Random distance each step
-	advanceParticles<<< 1, 256>>>(dt, devPArray, precomp, pointsDeltaX, prevLambda, invData, publicKeyX.val, publicKeyY.val);
+	advanceParticlesPart1<<< 1, 256>>>(dt, devPArray, precomp, pointsDeltaX, prevLambda, invData,
+	publicKeyX.val[0],
+	publicKeyX.val[1],
+    	publicKeyX.val[2],
+        	publicKeyX.val[3],
+            	publicKeyY.val[1],
+            	publicKeyY.val[2],
+            	publicKeyY.val[3],
+            	publicKeyY.val[4]
+	);
+	cudaDeviceSynchronize();
+
+	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < 10; i++) {
+        printf("Delta host no: %d\n", i);
+        pretty_print_mp_number(pointsDeltaXHost[i]);
+        printf("\n");
+    }
+    for (int i = 0; i < 10; i++) {
+        printf("Prev prevLambdaHost: %d\n", i);
+        pretty_print_mp_number(prevLambdaHost[i]);
+        printf("\n");
+    }
+    for (int i = 0; i < 10; i++) {
+        printf("Inv data no: %d\n", i);
+        pretty_print_mp_number(invDataHost[i]);
+        printf("\n");
+    }
+
+	cudaDeviceSynchronize();
+	profanity_inverse<<< 1, 1>>>(pointsDeltaX, invData);
+
+
+
+    error = cudaGetLastError();
+	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+
+    for (int i = 0; i < 10; i++) {
+        printf("Delta host no: %d\n", i);
+        pretty_print_mp_number(pointsDeltaXHost[i]);
+        printf("\n");
+    }
+    for (int i = 0; i < 10; i++) {
+        printf("Prev prevLambdaHost: %d\n", i);
+        pretty_print_mp_number(prevLambdaHost[i]);
+        printf("\n");
+    }
+    for (int i = 0; i < 10; i++) {
+        printf("Inv data no: %d\n", i);
+        pretty_print_mp_number(invDataHost[i]);
+        printf("\n");
+    }
+
+    if (error != cudaSuccess)
+    {
+        printf("profanity_inverse error: %s\n",cudaGetErrorString(error));
+        exit(1);
+    }
+    cudaDeviceSynchronize();
+
+	profanity_iterate<<< 1, 256>>>(pointsDeltaX, invData, prevLambda);
+	cudaDeviceSynchronize();
+	profanity_inverse <<<  1, 1 >>>  (pointsDeltaX, invData);
+	cudaDeviceSynchronize();
+	profanity_iterate <<<  1, 256 >>>  (pointsDeltaX, invData, prevLambda);
+
 	error = cudaGetLastError();
 	if (error != cudaSuccess)
     {
-    printf("3 %s\n",cudaGetErrorString(error));
-    exit(1);
+        printf("profanity_iterate error %s\n",cudaGetErrorString(error));
+        exit(1);
     }
+    	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+    	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+    	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+    	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
+
+        for (int i = 0; i < 10; i++) {
+            printf("Delta host no: %d\n", i);
+            pretty_print_mp_number(pointsDeltaXHost[i]);
+            printf("\n");
+        }
+        for (int i = 0; i < 10; i++) {
+            printf("Prev prevLambdaHost: %d\n", i);
+            pretty_print_mp_number(prevLambdaHost[i]);
+            printf("\n");
+        }
+        for (int i = 0; i < 10; i++) {
+            printf("Inv data no: %d\n", i);
+            pretty_print_mp_number(invDataHost[i]);
+            printf("\n");
+        }
+
+    //return 1;
 
 	cudaDeviceSynchronize();
 
@@ -992,8 +1201,8 @@ int main(int argc, char ** argv)
 	error = cudaGetLastError();
 	if (error != cudaSuccess)
     {
-    printf("4 %s\n",cudaGetErrorString(error));
-    exit(1);
+        printf("4 %s\n",cudaGetErrorString(error));
+        exit(1);
     }
 
 
@@ -1007,16 +1216,16 @@ int main(int argc, char ** argv)
 		}
 		printf("\n");
 	}*/
-	for (uint64_t n = 0; n < run_size; n++)
+	for (uint64_t n = 0; n < 10; n++)
 	{
 		printf("Hash no: %lld\n0x", n);
-		const uint8_t* hash = (uint8_t * )invDataHost[n * PROFANITY_INVERSE_SIZE].d;
-		const uint64_t seed[4] = {0, 0, 0, n};
+		const uint8_t* hash = (uint8_t * )invDataHost[n].d;
+		const uint64_t seed[4] = {1, 1, 1, 1 + n};
 		result r = {0};
 		r.found = 1;
 		r.foundId = (uint32_t) n;
 		memcpy(r.foundHash, hash, 20);
-		printResult(seed, 0, r, 0);
+		printResult(seed, 2, r, 0);
 		for (int i = 0; i < 20; i++)
 		{
 			printf("%02x", hash[i]);

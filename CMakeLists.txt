@@ -15,6 +15,8 @@ add_library(particles STATIC
   types.hpp
   utils.hpp
   utils.cpp
+  debug_utils.hpp
+  debug_utils.cpp
   v3.cu
   v3.h
   )

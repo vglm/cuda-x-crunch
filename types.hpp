@@ -1,3 +1,5 @@
+#pragma once
+
 #define MP_WORDS 8
 #define MP_BITS 32
 
