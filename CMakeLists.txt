@@ -8,6 +8,8 @@ add_library(particles STATIC
   ArgParser.hpp
   randomize.cpp
   randomize.h
+  keccak.cu
+  keccak.h
   particle.cu
   particle.h
   precomp.cpp
