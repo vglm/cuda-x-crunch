@@ -442,9 +442,12 @@ int main(int argc, char ** argv)
         test_create3();
         return 1;
     }
-    for (size_t i = 0; i < 1000000000; i++) {
-        create3_search("9e3f8eae49e442a323ef2094f277bf62752e6995");
+	create3_search_data data = { 0 };
+	create3_data_init("9e3f8eae49e442a323ef2094f277bf62752e6995", &data);
+    for (size_t i = 0; i < 10; i++) {
+        create3_search(&data);
     }
+    create3_data_destroy(&data);
     return 1;
 
     if (bHelp) {

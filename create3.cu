@@ -417,38 +417,54 @@ void load_factory_to_device(const char* factory) {
     cudaMemcpyToSymbol(g_factory, &factory_bytes, 20);
 }
 
-void create3_search(const char* factory)
+void create3_data_destroy(create3_search_data *init_data)
 {
-    const int kernel_group_size = 64;
-    const int data_count = 10000 * kernel_group_size;
+    delete[] init_data->host_result;
+    cudaFree(init_data->device_result);
+}
+
+void create3_data_init(const char* factory, create3_search_data *init_data)
+{
+    memcpy(init_data->factory, factory, 40);
+    init_data->factory[40] = 0;
+    init_data->rounds = 2000;
+    init_data->kernel_group_size = 64;
+    init_data->kernel_groups = 10000;
+
+    int data_count = init_data->kernel_group_size * init_data->kernel_groups;
+    cudaMalloc(&init_data->device_result, sizeof(search_result) * data_count);
+    init_data->host_result = new search_result[data_count]();
+    memset(init_data->host_result, 0, sizeof(search_result) * data_count);
+}
+
+void create3_search(create3_search_data *init_data)
+{
+    auto start = std::chrono::high_resolution_clock::now();
+
+    const int kernel_group_size = init_data->kernel_group_size;
+    const int data_count = init_data->kernel_groups * kernel_group_size;
     printf("Generating test data %d...\n", data_count);
 
-    load_factory_to_device(factory);
+    load_factory_to_device(init_data->factory);
 
-    auto randomSalt = new salt();
+    salt randomSalt;
 
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937_64 generator(seed);
 
 
-    randomSalt->q[0] = generator();
-    randomSalt->q[1] = generator();
-    randomSalt->q[2] = generator();
-    randomSalt->q[3] = generator();
+    randomSalt.q[0] = generator();
+    randomSalt.q[1] = generator();
+    randomSalt.q[2] = generator();
+    randomSalt.q[3] = generator();
 
-    cudaMemcpyToSymbol(g_randomSalt, &randomSalt->b, 32);
-
-    search_result* f = new search_result[data_count]();
-    memset(f, 0, sizeof(search_result) * data_count);
+    cudaMemcpyToSymbol(g_randomSalt, &randomSalt.b, 32);
 
 
-    search_result* deviceResult = NULL;
-    cudaMalloc(&deviceResult, sizeof(search_result) * data_count);
+    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count);
 
     printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
 
-    cudaMemcpy(deviceResult, f, sizeof(search_result) * data_count, cudaMemcpyHostToDevice);
-    cudaDeviceSynchronize();
 
     auto error = cudaGetLastError();
     if (error != cudaSuccess)
@@ -457,31 +473,13 @@ void create3_search(const char* factory)
         exit(1);
     }
     printf("Running keccak kernel...\n");
-    auto start = std::chrono::high_resolution_clock::now();
-    const uint64_t current_time = time(NULL);
     int64_t rounds = 2000;
-    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(deviceResult, rounds);
-    cudaDeviceSynchronize();
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    create3_search<<<data_count / kernel_group_size, kernel_group_size>>>(init_data->device_result, rounds);
 
-    // Output the duration
-    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
-
-    printf("Addresses computed: %lld\n", rounds * data_count);
-    printf("Compute MH: %f MH/s\n", (double)rounds * data_count / duration.count() * 1000.0);
-    printf("Start data factory: ");
-    for (int i = 0; i < 20; i++) {
-        printf("%02x", f[0].addr[i]);
-    }
-    printf("\n");
 
     printf("Copying data back...\n");
-    cudaMemcpy(f, deviceResult, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
-
-
-    printf("Freeing device memory...\n");
-    cudaFree(deviceResult);
+    search_result* f = init_data->host_result;
+    cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
 
     error = cudaGetLastError();
     if (error != cudaSuccess)
@@ -495,10 +493,10 @@ void create3_search(const char* factory)
     for (int n = 0; n < data_count; n++) {
         if (f[n].round != 0) {
             salt newSalt;
-            newSalt.q[0] = randomSalt->q[0];
-            newSalt.q[1] = randomSalt->q[1];
-            newSalt.q[2] = randomSalt->q[2];
-            newSalt.q[3] = randomSalt->q[3];
+            newSalt.q[0] = randomSalt.q[0];
+            newSalt.q[1] = randomSalt.q[1];
+            newSalt.q[2] = randomSalt.q[2];
+            newSalt.q[3] = randomSalt.q[3];
             newSalt.d[0] = f[n].id;
             newSalt.d[1] = f[n].round;
             hexAddr[0] = '0';
@@ -516,14 +514,21 @@ void create3_search(const char* factory)
                 sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
             }
             salt[64] = 0;
-            fprintf(out_file, "0x%s,%s,0x%s,%s_%s", salt, hexAddr, factory, "cuda_miner", "0.1");
+            fprintf(out_file, "0x%s,%s,0x%s,%s_%s", salt, hexAddr, init_data->factory, "cuda_miner", "0.1");
 
             fclose(out_file);
 
         }
     }
 
-    printf("Freeing host memory...\n");
-    delete[] f;
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+
+    // Output the duration
+    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
+
+    printf("Addresses computed: %lld\n", rounds * data_count);
+    printf("Compute MH: %f MH/s\n", (double)rounds * data_count / duration.count() * 1000.0);
+
 
 }
