@@ -338,10 +338,6 @@ __global__ void create3_search(search_result* const results, int rounds)
 }
 
 
-
-
-
-
 void test_create3()
 {
     const int kernel_group_size = 256;
@@ -568,7 +564,7 @@ void create3_search(create3_search_data *init_data)
                 sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
             }
             salt[64] = 0;
-            fprintf(out_file, "0x%s,%s,0x%s,%s_%s", salt, hexAddr, init_data->factory, "cuda_miner", "0.1");
+            fprintf(out_file, "0x%s,%s,0x%s,%s_%lld", salt, hexAddr, init_data->factory, "cuda_miner", init_data->total_compute / 1000 / 1000 / 1000 / 1000);
 
             fclose(out_file);
 
