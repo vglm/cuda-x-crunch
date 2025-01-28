@@ -30,7 +30,7 @@ jobs:
           cmake .
           make
 
-      - nane: List files
+      - name: List files
         run: |
           ls -la
           tree
