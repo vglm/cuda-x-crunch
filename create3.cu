@@ -4,6 +4,8 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
+    ethhash * first = { 0 };
+
 
 }
 

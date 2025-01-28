@@ -30,7 +30,6 @@
 #include "utils.hpp"
 #include "ArgParser.hpp"
 #include "debug_utils.hpp"
-#include "particle.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include "precomp.hpp"
@@ -289,7 +288,7 @@ __global__ void profanity_iterate(mp_number* const pDeltaX, mp_number* const pIn
 	pInverse[id].d[4] = h.d[7];
 }
 
-__global__ void advanceParticlesPart1(float dt, particle * pArray, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse,
+__global__ void advanceParticlesPart1(float dt, point* precomp, mp_number* pointsDeltaX, mp_number* pPrevLambda, mp_number* pInverse,
     uint64_t seedX1, uint64_t seedX2, uint64_t seedX3, uint64_t seedX4, uint64_t seedY1, uint64_t seedY2, uint64_t seedY3, uint64_t seedY4)
 {
 	uint64_t seed[4];
@@ -473,13 +472,12 @@ int main(int argc, char ** argv)
   	    exit(1);
   	}
 
-	particle * pArray = new particle[run_size];
-	particle* devPArray = NULL;
 	point * precomp = NULL;
 	mp_number* pointsDeltaX = NULL;
 	mp_number* prevLambda = NULL;
 	mp_number* invData = NULL;
-	cudaMalloc(&devPArray, run_size*sizeof(particle));
+
+
 	cudaMalloc(&precomp, 8160 * sizeof(point));
 	cudaMalloc(&pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
 	cudaMalloc(&prevLambda, PROFANITY_INVERSE_SIZE * run_size * sizeof(mp_number));
@@ -521,7 +519,7 @@ int main(int argc, char ** argv)
 		}
 	}
 
-	cudaMemcpy(devPArray, pArray, run_size*sizeof(particle), cudaMemcpyHostToDevice);
+
 	cudaMemcpy(precomp, g_precomp, 8160 * sizeof(point), cudaMemcpyHostToDevice);
 	cudaMemcpy(pointsDeltaX, pointsDeltaXHost, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyHostToDevice);
 	cudaMemcpy(prevLambda, prevLambdaHost, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyHostToDevice);
@@ -535,7 +533,7 @@ int main(int argc, char ** argv)
   	}
 
 	float dt = (float)rand()/(float) RAND_MAX; // Random distance each step
-	advanceParticlesPart1<<< 1, 256>>>(dt, devPArray, precomp, pointsDeltaX, prevLambda, invData,
+	advanceParticlesPart1<<< 1, 256>>>(dt, precomp, pointsDeltaX, prevLambda, invData,
 	publicKeyX.val[0],
 	publicKeyX.val[1],
     	publicKeyX.val[2],
@@ -547,7 +545,7 @@ int main(int argc, char ** argv)
 	);
 	cudaDeviceSynchronize();
 
-	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+
 	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
@@ -574,7 +572,7 @@ int main(int argc, char ** argv)
 
 
     error = cudaGetLastError();
-	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+
 	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
@@ -614,7 +612,7 @@ int main(int argc, char ** argv)
         printf("profanity_iterate error %s\n",cudaGetErrorString(error));
         exit(1);
     }
-    	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+
     	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
     	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
     	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
@@ -640,7 +638,7 @@ int main(int argc, char ** argv)
 	cudaDeviceSynchronize();
 
 	printf("Size of mp_number %lld\n", sizeof(mp_number));
-	cudaMemcpy(pArray, devPArray, run_size*sizeof(particle), cudaMemcpyDeviceToHost);
+
 	cudaMemcpy(pointsDeltaXHost, pointsDeltaX, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(prevLambdaHost, prevLambda, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);
 	cudaMemcpy(invDataHost, invData, PROFANITY_INVERSE_SIZE * run_size*sizeof(mp_number), cudaMemcpyDeviceToHost);

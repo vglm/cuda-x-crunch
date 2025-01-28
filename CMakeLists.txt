@@ -6,12 +6,8 @@ include(CTest)
 
 add_library(particles STATIC
   ArgParser.hpp
-  randomize.cpp
-  randomize.h
   keccak.cu
   keccak.h
-  particle.cu
-  particle.h
   create3.cu
   create3.h
   precomp.cpp
@@ -21,8 +17,6 @@ add_library(particles STATIC
   utils.cpp
   debug_utils.hpp
   debug_utils.cpp
-  v3.cu
-  v3.h
   )
 
 # Request that particles be built with -std=c++11
