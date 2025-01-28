@@ -108,7 +108,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     for (int round = 0; round < rounds; round++) {
-        ethhash first = { 0 };
+        __shared__ ethhash first;
 
         first.b[0] = 0xff;
         for (int i = 0; i < 20; i++) {
@@ -154,7 +154,12 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         first.b[84] = 0x1f;
         first.b[85] = 0x01u;
         //total length 85
+        for (int i = 86; i < 135; ++i)
+            first.b[i] = 0;
+
         first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
         compute_keccak_full(&first);
 
         first.b[0] = 0xd6u;
@@ -183,8 +188,8 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 
 void test_create3()
 {
-    const int kernel_group_size = 64;
-    const int data_count = 10000 * kernel_group_size;
+    const int kernel_group_size = 256;
+    const int data_count = 2500 * kernel_group_size;
     printf("Generating test data %d...\n", data_count);
 
 
@@ -238,7 +243,7 @@ void test_create3()
     printf("Running keccak kernel...\n");
     auto start = std::chrono::high_resolution_clock::now();
     const uint64_t current_time = time(NULL);
-    int64_t rounds = 1000;
+    int64_t rounds = 1100;
     create3_host<<<data_count / kernel_group_size, kernel_group_size>>>(deviceFactory, deviceSalt, rounds);
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
@@ -248,6 +253,7 @@ void test_create3()
     std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
 
     printf("Addresses computed: %lld\n", rounds * data_count);
+    printf("Compute MH: %f MH/s\n", (double)rounds * data_count / duration.count() * 1000.0);
     printf("Start data factory: ");
     for (int i = 0; i < 20; i++) {
         printf("%02x", f[0].b[i]);
