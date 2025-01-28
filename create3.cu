@@ -103,77 +103,80 @@ __device__ void partial_keccakf(uint64_t *a)
 #undef o
 }
 
-__global__ void create3_host(factory* const factory_data, salt* const salt_data)
+__global__ void create3_host(factory* const factory_data, salt* const salt_data, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
-    ethhash first = { 0 };
+    for (int round = 0; round < rounds; round++) {
+        ethhash first = { 0 };
 
-    first.b[0] = 0xff;
-    for (int i = 0; i < 20; i++) {
-        first.b[i + 1] = factory_data[id].b[i];
-    }
-    for (int i = 0; i < 32; i++) {
-        first.b[i + 21] = salt_data[id].b[i];
-    }
+        first.b[0] = 0xff;
+        for (int i = 0; i < 20; i++) {
+            first.b[i + 1] = factory_data[id].b[i];
+        }
+        for (int i = 0; i < 32; i++) {
+            first.b[i + 21] = salt_data[id].b[i];
+        }
 
-    //0x21c35dbe1b344a2488cf3321d6ce542f8e9f305544ff09e4993a62319a497c1f
+        //0x21c35dbe1b344a2488cf3321d6ce542f8e9f305544ff09e4993a62319a497c1f
 
-    first.b[53] = 0x21;
-    first.b[54] = 0xc3;
-    first.b[55] = 0x5d;
-    first.b[56] = 0xbe;
-    first.b[57] = 0x1b;
-    first.b[58] = 0x34;
-    first.b[59] = 0x4a;
-    first.b[60] = 0x24;
-    first.b[61] = 0x88;
-    first.b[62] = 0xcf;
-    first.b[63] = 0x33;
-    first.b[64] = 0x21;
-    first.b[65] = 0xd6;
-    first.b[66] = 0xce;
-    first.b[67] = 0x54;
-    first.b[68] = 0x2f;
-    first.b[69] = 0x8e;
-    first.b[70] = 0x9f;
-    first.b[71] = 0x30;
-    first.b[72] = 0x55;
-    first.b[73] = 0x44;
-    first.b[74] = 0xff;
-    first.b[75] = 0x09;
-    first.b[76] = 0xe4;
-    first.b[77] = 0x99;
-    first.b[78] = 0x3a;
-    first.b[79] = 0x62;
-    first.b[80] = 0x31;
-    first.b[81] = 0x9a;
-    first.b[82] = 0x49;
-    first.b[83] = 0x7c;
-    first.b[84] = 0x1f;
-    first.b[85] = 0x01u;
-    //total length 85
-    first.b[135] = 0x80u;
-    compute_keccak_full(&first);
+        first.b[53] = 0x21;
+        first.b[54] = 0xc3;
+        first.b[55] = 0x5d;
+        first.b[56] = 0xbe;
+        first.b[57] = 0x1b;
+        first.b[58] = 0x34;
+        first.b[59] = 0x4a;
+        first.b[60] = 0x24;
+        first.b[61] = 0x88;
+        first.b[62] = 0xcf;
+        first.b[63] = 0x33;
+        first.b[64] = 0x21;
+        first.b[65] = 0xd6;
+        first.b[66] = 0xce;
+        first.b[67] = 0x54;
+        first.b[68] = 0x2f;
+        first.b[69] = 0x8e;
+        first.b[70] = 0x9f;
+        first.b[71] = 0x30;
+        first.b[72] = 0x55;
+        first.b[73] = 0x44;
+        first.b[74] = 0xff;
+        first.b[75] = 0x09;
+        first.b[76] = 0xe4;
+        first.b[77] = 0x99;
+        first.b[78] = 0x3a;
+        first.b[79] = 0x62;
+        first.b[80] = 0x31;
+        first.b[81] = 0x9a;
+        first.b[82] = 0x49;
+        first.b[83] = 0x7c;
+        first.b[84] = 0x1f;
+        first.b[85] = 0x01u;
+        //total length 85
+        first.b[135] = 0x80u;
+        compute_keccak_full(&first);
 
-    first.b[0] = 0xd6u;
-    first.b[1] = 0x94u;
-    for (int i = 12; i < 32; i++) {
-        first.b[i - 10] = first.b[i];
-    }
+        first.b[0] = 0xd6u;
+        first.b[1] = 0x94u;
+        for (int i = 12; i < 32; i++) {
+            first.b[i - 10] = first.b[i];
+        }
 
-    first.b[22] = 0x01u;
-    first.b[23] = 0x01u;
-    for (int i = 24; i < 135; ++i)
-        first.b[i] = 0;
-    first.b[135] = 0x80u;
-    for (int i = 136; i < 200; ++i)
-        first.b[i] = 0;
+        first.b[22] = 0x01u;
+        first.b[23] = 0x01u;
+        for (int i = 24; i < 135; ++i)
+            first.b[i] = 0;
+        first.b[135] = 0x80u;
+        for (int i = 136; i < 200; ++i)
+            first.b[i] = 0;
 
-    partial_keccakf((uint64_t*)&first);
-
-    for (int i = 0; i < 20; i++) {
-        factory_data[id].b[i] = first.b[i + 12];
+        partial_keccakf((uint64_t*)&first);
+        if (first.b[0] != 0 && round == rounds - 1) {
+            for (int i = 0; i < 20; i++) {
+                factory_data[id].b[i] = first.b[i + 12];
+            }
+        }
     }
 }
 
@@ -181,14 +184,14 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data)
 void test_create3()
 {
     const int kernel_group_size = 64;
-    const int data_count = 100000 * kernel_group_size;
+    const int data_count = 10000 * kernel_group_size;
     printf("Generating test data %d...\n", data_count);
 
 
     salt* s = new salt[data_count]();
     {
         uint8_t salt[32];
-        const char* test_salt = "6233362f90c89a3be581c4000000000000000000000000000000000000000000";
+        const char* test_salt = "f666cd402db9720a1c0e39000000000000000000000000000000000000000000";
         for (int i = 0; i < 32; i++) {
             unsigned int byte;
             sscanf(test_salt + i * 2, "%2x", &byte); // Parse 2-character hex string
@@ -235,7 +238,8 @@ void test_create3()
     printf("Running keccak kernel...\n");
     auto start = std::chrono::high_resolution_clock::now();
     const uint64_t current_time = time(NULL);
-    create3_host<<<data_count / kernel_group_size, kernel_group_size>>>(deviceFactory, deviceSalt);
+    int64_t rounds = 1000;
+    create3_host<<<data_count / kernel_group_size, kernel_group_size>>>(deviceFactory, deviceSalt, rounds);
     cudaDeviceSynchronize();
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
@@ -243,6 +247,7 @@ void test_create3()
     // Output the duration
     std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
 
+    printf("Addresses computed: %lld\n", rounds * data_count);
     printf("Start data factory: ");
     for (int i = 0; i < 20; i++) {
         printf("%02x", f[0].b[i]);
@@ -270,19 +275,19 @@ void test_create3()
     }
 
     printf("Checking results...\n");
+    char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
-        char hexAddr[43] = { 0 };
         hexAddr[0] = '0';
         hexAddr[1] = 'x';
         for (int i = 0; i < 20; i++) {
             sprintf(&hexAddr[(i) * 2 + 2], "%02x", f[n].b[i]);
         }
-        if (strcmp(hexAddr, "0x35743574e8474571a6bf34621f185a917e11d919") != 0) {
-            printf("Keccak test failed expected %s got %s\n", "0x35743574e8474571a6bf34621f185a917e11d919", hexAddr);
+        if (strcmp(hexAddr, "0x000000000000d710b854d2cfd38baca6b87f4494") != 0) {
+            printf("Keccak test failed expected %s got %s\n", "0x000000000000d710b854d2cfd38baca6b87f4494", hexAddr);
             exit(1);
         }
     }
-    printf("Keccak test passed\n");
+    printf("Keccak test passed: %s\n", hexAddr);
 
     printf("Freeing host memory...\n");
     delete[] f;
