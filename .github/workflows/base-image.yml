@@ -28,7 +28,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}  # Use the built-in GITHUB_TOKEN
 
       - name: Build Docker image
-        run: docker build --squash -f Dockerfile_base -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }} .
+        run: docker build -f Dockerfile_base -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }} .
 
       - name: Push Docker image
         run: docker push ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }}

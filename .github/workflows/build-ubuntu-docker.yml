@@ -1,0 +1,31 @@
+name: Build ubuntu
+
+on:
+  push:
+    branches: [ "main", "actions/build" ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build (debug or release)'
+        required: true
+        default: 'release'
+      target:
+        description: 'Optional compilation target'
+        required: false
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write  # Required to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build docker
+        run: |
+          docker build -t profanity_cuda .
