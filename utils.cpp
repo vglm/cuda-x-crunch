@@ -54,5 +54,5 @@ std::string bytes_to_ethereum_address(const uint8_t *bytes) {
     for (int i = 0; i < 20; i++) {
         sprintf(buf + i * 2 + 2, "%02x", bytes[i]);
     }
-    return std::string(buf, 40);
+    return std::string(buf, 42);
 }
