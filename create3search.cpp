@@ -3,6 +3,8 @@
 #include "Logger.hpp"
 #include <random>
 #include <iostream>
+#include <cuda_runtime_api.h>
+#include <cuda.h>
 
 void create3_data_init(create3_search_data *init_data)
 {
@@ -10,7 +12,7 @@ void create3_data_init(create3_search_data *init_data)
     init_data->time_started = get_current_timestamp();
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
-    cudaMalloc(&init_data->device_result, sizeof(search_result) * data_count);
+    cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count);
     init_data->host_result = new search_result[data_count]();
     memset(init_data->host_result, 0, sizeof(search_result) * data_count);
     CHECK_CUDA_ERROR("Allocate memory on CUDA");
