@@ -14,6 +14,7 @@ add_executable(profanity_cuda
   keccak.cu
   keccak.h
   create3.cu
+  create3search.cu
   create3.h
   precomp.cpp
   precomp.hpp

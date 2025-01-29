@@ -93,6 +93,9 @@ int main(int argc, char ** argv)
         std::cout << g_strHelp << std::endl;
         return 0;
     }
+    if (bModeBenchmark) {
+        LOG_INFO("Benchmark mode enabled - application will run for 10 seconds");
+    }
     //normalize address
     factoryAddr = normalize_ethereum_address(factoryAddr);
     if (factoryAddr.empty()) {
@@ -100,10 +103,6 @@ int main(int argc, char ** argv)
         return 1;
     }
 
-    if (bModeBenchmark) {
-        test_create3();
-        return 1;
-    }
 	create3_search_data init_data = { 0 };
     memcpy(init_data.factory, factoryAddr.c_str(), 40);
     if (strOutputDirectory.size() > 1000) {
@@ -124,11 +123,16 @@ int main(int argc, char ** argv)
 	create3_data_init(&init_data);
 	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", (double)(init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
 
+    double start = get_current_timestamp();
     while(true) {
 		if (g_exiting) {
 			break;
 		}
         create3_search(&init_data);
+        double end = get_current_timestamp();
+        if (bModeBenchmark && (end - start) > 10) {
+            break;
+        }
     }
     create3_data_destroy(&init_data);
     return 0;
