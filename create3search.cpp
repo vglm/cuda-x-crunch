@@ -4,7 +4,6 @@
 #include <random>
 #include <iostream>
 #include <cuda_runtime_api.h>
-#include <format>
 #include <string>
 #include <filesystem>
 
