@@ -27,7 +27,7 @@ add_executable(profanity_cuda
  )
 
  if(UNIX AND NOT APPLE)
-     target_include_directories(profanity_cuda /usr/local/cuda/targets/x86_64-linux/include)
+     target_include_directories(profanity_cuda PRIVATE /usr/local/cuda/targets/x86_64-linux/include)
  endif()
 
 
