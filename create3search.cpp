@@ -6,6 +6,7 @@
 #include <cuda_runtime_api.h>
 #include <string>
 #include <filesystem>
+#include <cstring>
 
 void create3_data_init(create3_search_data *init_data)
 {
