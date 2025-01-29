@@ -50,7 +50,7 @@ void create3_search(create3_search_data *init_data)
     LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
 
     LOG_DEBUG("Running keccak kernel...");
-    create3_search<<<(int)(data_count / kernel_group_size), kernel_group_size>>>(init_data->device_result, (int)(init_data->rounds));
+    run_kernel_create3_search(init_data);
     CHECK_CUDA_ERROR("Failed to run kernel");
 
     LOG_DEBUG("Copying data back...");
@@ -73,15 +73,12 @@ void create3_search(create3_search_data *init_data)
             for (int i = 0; i < 20; i++) {
                 sprintf(&hexAddr[(i) * 2 + 2], "%02x", f[n].addr[i]);
             }
-            printf("Found address %s at round %d and id %d\n", hexAddr, f[n].round, f[n].id);
-            char fileName[65000] = {0};
-            //mkdir if not exists
-
-
+            char fileName[6256] = { 0 };
+            sprintf(fileName, "%s/addr_%s.csv", init_data->outputDir, hexAddr);
 
             FILE *out_file = fopen(fileName, "w");
             if (out_file == NULL) {
-				printf("Error opening file %s!\n", fileName);
+				LOG_ERROR("Error opening file %s!\n", fileName);
 				exit(1);
 			}
             char salt[65] = {0};

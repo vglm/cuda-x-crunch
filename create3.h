@@ -46,9 +46,7 @@ void test_create3();
 #endif
 
 //cuda types
-#ifdef __CUDACC__
 void update_device_factory(const uint8_t* factory);
 void update_device_salt(const salt* salt);
-__global__ void create3_search(search_result* const results, int rounds);
-#endif
+void run_kernel_create3_search(create3_search_data * data);
 

@@ -463,3 +463,6 @@ void test_create3()
 }
 #endif
 
+void run_kernel_create3_search(create3_search_data * data) {
+    create3_search<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+}
