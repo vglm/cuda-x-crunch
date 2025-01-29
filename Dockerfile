@@ -10,9 +10,9 @@ RUN apt-get update
 RUN apt-get -y install cuda-toolkit-12-8
 RUN rm cuda-repo-ubuntu2204-12-8-local_12.8.0-570.86.10-1_amd64.deb
 RUN apt-get -y install build-essential cmake
+RUN apt-get -y install git
+ENV PATH=/usr/local/cuda/bin${PATH:+:${PATH}}
 COPY . /app
 WORKDIR /app
-RUN apt-get -y install git
 RUN git clean -fdx
 RUN cmake .
-RUN make
