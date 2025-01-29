@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 as builder
 RUN apt-get update
 RUN apt-get -y install wget
 RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
@@ -16,3 +16,8 @@ COPY . /app
 WORKDIR /app
 RUN git clean -fdx
 RUN cmake .
+RUN make
+
+FROM ubuntu:22.04
+COPY --from=builder /app/profanity_cuda /usr/local/bin/profanity_cuda
+
