@@ -15,6 +15,10 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write  # Required to push to GHCR
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,7 +28,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}  # Use the built-in GITHUB_TOKEN
 
       - name: Build Docker image
         run: docker build -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:latest .
