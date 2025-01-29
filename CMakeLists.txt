@@ -1,10 +1,15 @@
 
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
-project(cmake_and_cuda LANGUAGES CXX CUDA)
+cmake_minimum_required(VERSION 3.30 FATAL_ERROR)
 
-include(CTest)
+project(profanity_cuda LANGUAGES CXX CUDA)
 
-add_library(particles STATIC
+set(CMAKE_CXX_STANDARD 17)
+
+# Set the CUDA architecture (optional)
+set(CMAKE_CUDA_ARCHITECTURES 60 70 75 80)  # Modify according to your GPU
+
+add_executable(profanity_cuda
+  profanity.cu
   ArgParser.hpp
   keccak.cu
   keccak.h
@@ -17,21 +22,10 @@ add_library(particles STATIC
   utils.cpp
   debug_utils.hpp
   debug_utils.cpp
-  )
+ )
 
+# Additional compile options (optional)
+#target_compile_options(profanity_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
 
-# We need to explicitly state that we need all CUDA files in the particle
-# library to be built with -dc as the member functions could be called by
-# other libraries and executables
-set_target_properties( particles
-                       PROPERTIES CUDA_SEPARABLE_COMPILATION ON
-                      )
+#set_property(TARGET profanity_cuda PROPERTY CUDA_ARCHITECTURES 72)
 
-if(BUILD_TESTING)
-
-  add_executable(profanity_cuda profanity.cu)
-
-  set_target_properties(profanity_cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-  target_link_libraries(profanity_cuda PRIVATE particles)
-
-endif()

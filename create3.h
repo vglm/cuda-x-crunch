@@ -1,7 +1,6 @@
 #pragma once
 
-#include "keccak.h"
-
+#include <cstdint>
 
 typedef struct {
     uint8_t b[20];
@@ -15,13 +14,14 @@ typedef struct {
 
 typedef struct {
     char factory[41];
+    char outputDir[1024];
     int rounds;
     int kernel_group_size;
     int kernel_groups;
     search_result * device_result;
     search_result * host_result;
     uint64_t total_compute;
-    uint64_t time_started;
+    double time_started;
 } create3_search_data;
 
 
@@ -31,7 +31,16 @@ typedef union {
     uint64_t q[4];
 } salt;
 
-void create3_data_init(const char* factory, create3_search_data* data);
+
+typedef union {
+    uint8_t b[200];
+    uint32_t d[50];
+    uint64_t q[25];
+} ethhash;
+
+
+void create3_data_init(create3_search_data* data);
 void create3_data_destroy(create3_search_data* data);
 void create3_search(create3_search_data* factory);
 void test_create3();
+

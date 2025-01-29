@@ -1,6 +1,9 @@
 #include "create3.h"
+#include "utils.hpp"
+#include "Logger.hpp"
 #include <random>
-#include <chrono>
+#include <iostream>
+
 
 #define ROL(X, S) (((X) << S) | ((X) >> (64 - S)))
 
@@ -428,7 +431,7 @@ void test_create3()
     error = cudaGetLastError();
     if (error != cudaSuccess)
     {
-        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
+        LOG_ERROR("Initialize keccak test failed %s\n", cudaGetErrorString(error));
         exit(1);
     }
 
@@ -468,41 +471,32 @@ void create3_data_destroy(create3_search_data *init_data)
     cudaFree(init_data->device_result);
 }
 
-void create3_data_init(const char* factory, create3_search_data *init_data)
+void create3_data_init(create3_search_data *init_data)
 {
-    memcpy(init_data->factory, factory, 40);
-    init_data->factory[40] = 0;
-    init_data->rounds = 2000;
-    init_data->kernel_group_size = 64;
-    init_data->kernel_groups = 10000;
     init_data->total_compute = 0;
-    init_data->time_started = time(NULL);
+    init_data->time_started = get_current_timestamp();
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
-    printf("Generating test data %lld...\n", sizeof(search_result));
     cudaMalloc(&init_data->device_result, sizeof(search_result) * data_count);
     init_data->host_result = new search_result[data_count]();
     memset(init_data->host_result, 0, sizeof(search_result) * data_count);
+    CHECK_CUDA_ERROR("Allocate memory on CUDA");
 }
-
-
-
 
 void create3_search(create3_search_data *init_data)
 {
-    auto start = std::chrono::high_resolution_clock::now();
+    double start = get_current_timestamp();
 
     const int kernel_group_size = init_data->kernel_group_size;
     const uint64_t data_count = init_data->kernel_groups * kernel_group_size;
-    printf("Generating test data %lld...\n", data_count);
 
     load_factory_to_device(init_data->factory);
+    CHECK_CUDA_ERROR("Failed to load factory data");
 
     salt randomSalt;
 
-    unsigned long long int seed = (unsigned long long int)std::chrono::system_clock::now().time_since_epoch().count();
+    double seed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
     std::mt19937_64 generator(seed);
-
 
     randomSalt.q[0] = generator();
     randomSalt.q[1] = generator();
@@ -510,35 +504,21 @@ void create3_search(create3_search_data *init_data)
     randomSalt.q[3] = generator();
 
     cudaMemcpyToSymbol(g_randomSalt, &randomSalt.b, 32);
-
+    CHECK_CUDA_ERROR("Failed to load salt data");
 
     cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count);
 
-    printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
+    LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
 
-
-    auto error = cudaGetLastError();
-    if (error != cudaSuccess)
-    {
-        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
-        exit(1);
-    }
-    printf("Running keccak kernel...\n");
+    LOG_DEBUG("Running keccak kernel...");
     create3_search<<<(int)(data_count / kernel_group_size), kernel_group_size>>>(init_data->device_result, (int)(init_data->rounds));
+    CHECK_CUDA_ERROR("Failed to run kernel");
 
-
-    printf("Copying data back...\n");
+    LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
     cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
+    CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
-    error = cudaGetLastError();
-    if (error != cudaSuccess)
-    {
-        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
-        exit(1);
-    }
-
-    printf("Checking results...\n");
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
         if (f[n].round != 0) {
@@ -556,32 +536,33 @@ void create3_search(create3_search_data *init_data)
             }
             printf("Found address %s at round %d and id %d\n", hexAddr, f[n].round, f[n].id);
             char fileName[65000] = {0};
-            sprintf(fileName, "output/addr_%s.csv", hexAddr);
+            //mkdir if not exists
 
+            
+            
             FILE *out_file = fopen(fileName, "w");
+            if (out_file == NULL) {
+				printf("Error opening file %s!\n", fileName);
+				exit(1);
+			}
             char salt[65] = {0};
             for (int i = 0; i < 32; i++) {
                 sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
             }
             salt[64] = 0;
-            fprintf(out_file, "0x%s,%s,0x%s,%s_%lld", salt, hexAddr, init_data->factory, "cuda_miner", init_data->total_compute / 1000 / 1000 / 1000 / 1000);
+            fprintf(out_file, "0x%s,%s,0x%s,%s_%lld", salt, hexAddr, init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
+            printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr, init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
 
             fclose(out_file);
 
         }
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-
-    // Output the duration
-    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
+    double end = get_current_timestamp();
 
     init_data->total_compute += init_data->rounds * data_count;
-    printf("Addresses computed: %lld\n", init_data->rounds * data_count);
-    printf("Compute MH: %f MH/s\n", (double)init_data->rounds * data_count / duration.count() * 1000.0);
-    printf("Total compute: %lld GH\n", init_data->total_compute / 1000 / 1000 / 1000);
-    printf("Total compute MH: %02f MH/s\n", (double)init_data->total_compute / (time(NULL) - init_data->time_started) / 1000 / 1000);
-
+    LOG_DEBUG("Addresses computed: %lld", init_data->rounds * data_count);
+    LOG_DEBUG("Compute MH: %f MH/s", (double)init_data->rounds * data_count / (end - start) * 1000.0);
+    LOG_INFO("Total compute %.2f GH - %.2f MH/s", (double)init_data->total_compute / 1000. / 1000. / 1000., (double)init_data->total_compute / (end - init_data->time_started) / 1000 / 1000);
 
 }
