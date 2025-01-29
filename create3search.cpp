@@ -83,8 +83,7 @@ void create3_search(create3_search_data *init_data)
                 std::filesystem::create_directories(outDirPath);
             }
 
-            std::string fileName = std::format("{}/addr_{}.csv", init_data->outputDir, hexAddr);
-
+            std::string fileName = init_data->outputDir + std::string("/addr_") + hexAddr + ".csv";
 
             FILE *out_file = fopen(fileName.c_str(), "w");
             if (out_file == NULL) {
