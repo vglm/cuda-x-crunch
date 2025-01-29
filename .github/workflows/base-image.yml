@@ -1,0 +1,33 @@
+name: Publish Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Type of build (debug or release)'
+        required: true
+        default: 'release'
+      target:
+        description: 'Optional compilation target'
+        required: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build Docker image
+        run: docker build -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:latest .
+
+      - name: Push Docker image
+        run: docker push ghcr.io/${{ github.repository_owner }}/cuda-build-base:latest
