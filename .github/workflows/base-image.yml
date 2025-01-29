@@ -3,13 +3,10 @@ name: Publish Docker Image
 on:
   workflow_dispatch:
     inputs:
-      build_type:
-        description: 'Type of build (debug or release)'
+      tag:
+        description: 'Tag for the base Docker image'
         required: true
-        default: 'release'
-      target:
-        description: 'Optional compilation target'
-        required: false
+        default: 'latest'
 
 jobs:
   build-and-push:
@@ -31,7 +28,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}  # Use the built-in GITHUB_TOKEN
 
       - name: Build Docker image
-        run: docker build -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:latest .
+        run: docker build --squash -f Dockerfile_base -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }} .
 
       - name: Push Docker image
-        run: docker push ghcr.io/${{ github.repository_owner }}/cuda-build-base:latest
+        run: docker push ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }}
