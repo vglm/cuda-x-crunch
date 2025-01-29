@@ -4,7 +4,9 @@
 #include <random>
 #include <iostream>
 #include <cuda_runtime_api.h>
-#include <cuda.h>
+#include <format>
+#include <string>
+#include <filesystem>
 
 void create3_data_init(create3_search_data *init_data)
 {
@@ -24,6 +26,18 @@ void create3_data_destroy(create3_search_data *init_data)
     cudaFree(init_data->device_result);
 }
 
+salt generate_random_salt() {
+    salt randomSalt;
+    int64_t seed = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+    std::mt19937_64 generator(seed);
+
+    randomSalt.q[0] = generator();
+    randomSalt.q[1] = generator();
+    randomSalt.q[2] = generator();
+    randomSalt.q[3] = generator();
+    return randomSalt;
+}
+
 void create3_search(create3_search_data *init_data)
 {
     double start = get_current_timestamp();
@@ -34,16 +48,7 @@ void create3_search(create3_search_data *init_data)
     load_factory_to_device(init_data->factory);
     CHECK_CUDA_ERROR("Failed to load factory data");
 
-    salt randomSalt;
-
-    double seed = std::chrono::duration<double>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::mt19937_64 generator(seed);
-
-    randomSalt.q[0] = generator();
-    randomSalt.q[1] = generator();
-    randomSalt.q[2] = generator();
-    randomSalt.q[3] = generator();
-
+    salt randomSalt = generate_random_salt();
     update_device_salt(&randomSalt);
     CHECK_CUDA_ERROR("Failed to load salt data");
 
@@ -58,6 +63,7 @@ void create3_search(create3_search_data *init_data)
     LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
     cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
     char hexAddr[43] = { 0 };
@@ -70,17 +76,20 @@ void create3_search(create3_search_data *init_data)
             newSalt.q[3] = randomSalt.q[3];
             newSalt.d[0] = f[n].id;
             newSalt.d[1] = f[n].round;
-            hexAddr[0] = '0';
-            hexAddr[1] = 'x';
-            for (int i = 0; i < 20; i++) {
-                sprintf(&hexAddr[(i) * 2 + 2], "%02x", f[n].addr[i]);
+            std::string hexAddr = bytes_to_ethereum_address(f[n].addr);
+            std::string outputDir = init_data->outputDir;
+            // Ensure output directory exists
+            std::filesystem::path outDirPath(outputDir);
+            if (!std::filesystem::exists(outDirPath)) {
+                std::filesystem::create_directories(outDirPath);
             }
-            char fileName[6256] = { 0 };
-            sprintf(fileName, "%s/addr_%s.csv", init_data->outputDir, hexAddr);
 
-            FILE *out_file = fopen(fileName, "w");
+            std::string fileName = std::format("{}/addr_{}.csv", init_data->outputDir, hexAddr);
+
+
+            FILE *out_file = fopen(fileName.c_str(), "w");
             if (out_file == NULL) {
-				LOG_ERROR("Error opening file %s!\n", fileName);
+				LOG_ERROR("Error opening file %s!\n", fileName.c_str());
 				exit(1);
 			}
             char salt[65] = {0};
@@ -88,8 +97,8 @@ void create3_search(create3_search_data *init_data)
                 sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
             }
             salt[64] = 0;
-            fprintf(out_file, "0x%s,%s,0x%s,%s_%lld", salt, hexAddr, init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
-            printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr, init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
+            fprintf(out_file, "0x%s,%s,0x%s,%s_%lld", salt, hexAddr.c_str(), init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
+            printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr.c_str(), init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
 
             fclose(out_file);
 
@@ -100,7 +109,7 @@ void create3_search(create3_search_data *init_data)
 
     init_data->total_compute += init_data->rounds * data_count;
     LOG_DEBUG("Addresses computed: %lld", init_data->rounds * data_count);
-    LOG_DEBUG("Compute MH: %f MH/s", (double)init_data->rounds * data_count / (end - start) * 1000.0);
+    LOG_DEBUG("Compute MH: %f MH/s", (double)init_data->rounds * data_count / (end - start) / 1000 / 1000);
     LOG_INFO("Total compute %.2f GH - %.2f MH/s", (double)init_data->total_compute / 1000. / 1000. / 1000., (double)init_data->total_compute / (end - init_data->time_started) / 1000 / 1000);
 }
 

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.30 FATAL_ERROR)
 
 project(profanity_cuda LANGUAGES CXX CUDA)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # Set the CUDA architecture (optional)
 set(CMAKE_CUDA_ARCHITECTURES 60 70 75 80)  # Modify according to your GPU

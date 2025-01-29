@@ -40,7 +40,19 @@ std::string normalize_ethereum_address(const std::string & address)
     return ret;
 }
 
+const uint64_t start = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();;
 double get_current_timestamp() {
-    auto now = std::chrono::system_clock::now().time_since_epoch();
-    return std::chrono::duration<double>(now).count();
+
+    auto now = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();;
+    return (now - start) / 1.0E9;
+}
+
+std::string bytes_to_ethereum_address(const uint8_t *bytes) {
+    char buf[43];
+    buf[0] = '0';
+    buf[1] = 'x';
+    for (int i = 0; i < 20; i++) {
+        sprintf(buf + i * 2 + 2, "%02x", bytes[i]);
+    }
+    return std::string(buf, 40);
 }
