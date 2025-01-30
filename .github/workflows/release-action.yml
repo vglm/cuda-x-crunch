@@ -20,7 +20,9 @@ jobs:
           cuda: '12.4.1'
 
       - name: Run build script
-        run: python build-cross.py
+        run: |
+          python build-cross.py
+          mv profanity_cuda profanity_cuda-12.4.1
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
