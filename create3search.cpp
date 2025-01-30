@@ -11,7 +11,7 @@
 void create3_data_init(create3_search_data *init_data)
 {
     init_data->total_compute = 0;
-    init_data->time_started = get_current_timestamp();
+    init_data->time_started = get_app_time_sec();
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
     cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count);
@@ -40,7 +40,7 @@ salt generate_random_salt() {
 
 void create3_search(create3_search_data *init_data)
 {
-    double start = get_current_timestamp();
+    double start = get_app_time_sec();
 
     const int kernel_group_size = init_data->kernel_group_size;
     const uint64_t data_count = init_data->kernel_groups * kernel_group_size;
@@ -104,7 +104,7 @@ void create3_search(create3_search_data *init_data)
         }
     }
 
-    double end = get_current_timestamp();
+    double end = get_app_time_sec();
 
     init_data->total_compute += init_data->rounds * data_count;
     LOG_DEBUG("Addresses computed: %lld", init_data->rounds * data_count);

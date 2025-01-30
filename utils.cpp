@@ -41,8 +41,7 @@ std::string normalize_ethereum_address(const std::string & address)
 }
 
 const uint64_t start = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();;
-double get_current_timestamp() {
-
+double get_app_time_sec() {
     auto now = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();;
     return (now - start) / 1.0E9;
 }
@@ -55,4 +54,29 @@ std::string bytes_to_ethereum_address(const uint8_t *bytes) {
         sprintf(buf + i * 2 + 2, "%02x", bytes[i]);
     }
     return std::string(buf, 42);
+}
+
+std::string get_utc_time() {
+    // Get the current time point
+    auto now = std::chrono::system_clock::now();
+
+    // Convert the time point to a time_t, which represents the time in seconds since the epoch
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    // Convert the time_t to a tm structure in UTC
+    auto now_tm = *std::gmtime(&now_time_t);
+
+    // Get the milliseconds part
+    auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    // Create a string stream to format the output
+    std::ostringstream oss;
+
+    // Format the time as "YYYY-MM-DDTHH:MM:SS.sssZ"
+    oss << std::put_time(&now_tm, "%Y-%m-%dT%H:%M:%S")
+        << '.' << std::setfill('0') << std::setw(3) << now_ms.count()
+        << 'Z';
+
+    // Return the formatted string
+    return oss.str();
 }

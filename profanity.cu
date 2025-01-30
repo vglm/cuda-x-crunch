@@ -123,13 +123,13 @@ int main(int argc, char ** argv)
 	create3_data_init(&init_data);
 	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", (double)(init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
 
-    double start = get_current_timestamp();
+    double start = get_app_time_sec();
     while(true) {
 		if (g_exiting) {
 			break;
 		}
         create3_search(&init_data);
-        double end = get_current_timestamp();
+        double end = get_app_time_sec();
         if (bModeBenchmark && (end - start) > 10) {
             break;
         }

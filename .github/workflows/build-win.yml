@@ -33,10 +33,10 @@ jobs:
       - name: Build project
         run: |
           cmake .
-          MSBuild cmake_and_cuda.sln /p:Platform=x64 /p:Configuration=Release /t:profanity_cuda
+          MSBuild profanity_cuda.sln /p:Platform=x64 /p:Configuration=Release /t:profanity_cuda
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: particle_test
+          name: Executable
           path: Release/*

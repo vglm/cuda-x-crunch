@@ -41,7 +41,7 @@ public:
             va_end(args);
 
             std::ostream& out = logFile.is_open() ? logFile : std::cerr;
-            out << getLabel(level) << buffer << std::endl;
+            out << "[" << get_utc_time() << getLabel(level) << buffer << std::endl;
         }
     }
 
@@ -57,11 +57,11 @@ private:
 
     std::string getLabel(Level level) {
         switch (level) {
-            case ERROR: return "[ERROR] ";
-            case WARNING: return "[WARNING] ";
-            case INFO: return "[INFO] ";
-            case DEBUG: return "[DEBUG] ";
-            default: return "[LOG] ";
+            case ERROR: return " ERROR] ";
+            case WARNING: return " WARNING] ";
+            case INFO: return " INFO] ";
+            case DEBUG: return " DEBUG] ";
+            default: return " LOG] ";
         }
     }
 };
