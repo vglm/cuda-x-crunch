@@ -24,19 +24,13 @@ jobs:
 
       - name: Build project
         run: |
-          cmake .
-          cmd /c build_release_win.bat
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: Executable
-          path: Release/*
+          python build-cross.py
 
       - name: Run benchmark
         run: |
-          .\Release\profanity_cuda.exe -b
+          python benchmark-cross.py
 
-      - name: Cleanup
+      - name: Cleanup self hosted runner workspace
+        continue-on-error: true
         run: |
-          Remove-Item -Path .\* -Recurse -Force
+          git clean -ffdx
