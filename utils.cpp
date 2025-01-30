@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <random>
+#include <mutex>
 
 std::string string_replace(const std::string & str, const std::string & from, const std::string & to)
 {
@@ -81,3 +83,25 @@ std::string get_utc_time() {
     // Return the formatted string
     return oss.str();
 }
+
+std::unique_ptr<std::mt19937_64> generator;
+std::mutex mutex;
+void _init_random(uint64_t seed) {
+    generator = std::make_unique<std::mt19937_64>(seed);
+}
+
+uint64_t get_next_random()
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!generator) {
+        _init_random(std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count());
+    }
+    return (*generator)();
+}
+
+void init_random(uint64_t seed)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    _init_random(seed);
+}
+

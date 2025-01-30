@@ -15,3 +15,6 @@ std::string bytes_to_ethereum_address(const uint8_t *bytes);
 double get_app_time_sec();
 
 std::string get_utc_time();
+
+void init_random(uint64_t seed);
+uint64_t get_next_random();

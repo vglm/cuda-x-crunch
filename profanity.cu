@@ -38,6 +38,7 @@
 #include <sstream>
 #include <csignal>
 #include "Logger.hpp"
+#include "version.h"
 
 bool g_exiting = false;
 // Signal handler function
@@ -54,9 +55,12 @@ int main(int argc, char ** argv)
 
     ArgParser argp(argc, argv);
     bool bHelp = false;
-    bool bModeBenchmark = false;
+    double benchmarkLimitTime = 0.0;
+    int benchmarkLimitLoops = 0;
     bool bDebug = false;
     bool bErrorsOnly = false;
+    bool bVersion = false;
+    uint64_t uSeed = 0;
 
     int kernelSize = 256;
     int groups = 1000;
@@ -64,10 +68,13 @@ int main(int argc, char ** argv)
     std::string strOutputDirectory = "output";
     std::string factoryAddr = "0x9E3F8eaE49E442A323EF2094f277Bf62752E6995";
 
+    argp.addSwitch('s', "seed", uSeed);
     argp.addSwitch('d', "debug", bDebug);
+    argp.addSwitch('v', "version", bVersion);
     argp.addSwitch('e', "errors", bErrorsOnly);
     argp.addSwitch('h', "help", bHelp);
-    argp.addSwitch('b', "benchmark", bModeBenchmark);
+    argp.addSwitch('b', "benchmark", benchmarkLimitTime);
+    argp.addSwitch('l', "loops", benchmarkLimitLoops);
     argp.addSwitch('o', "output", strOutputDirectory);
     argp.addSwitch('f', "factory", factoryAddr);
     argp.addSwitch('k', "kernel", kernelSize);
@@ -78,6 +85,42 @@ int main(int argc, char ** argv)
         std::cout << "error: bad arguments, -h for help" << std::endl;
         return 1;
     }
+    if (uSeed) {
+        LOG_WARNING("Using custom seed %llx so results will be the same and not random", uSeed);
+        init_random(uSeed);
+    }
+    if (bVersion) {
+        std::cout << g_strVersion;
+        return 0;
+    }
+    {
+        int deviceCount;
+        cudaGetDeviceCount(&deviceCount);
+
+        for (int device = 0; device < deviceCount; ++device) {
+            cudaDeviceProp prop;
+            cudaGetDeviceProperties(&prop, device);
+
+            std::cout << "Device " << device << ": " << prop.name << std::endl;
+            std::cout << "  Compute capability: " << prop.major << "." << prop.minor << std::endl;
+            std::cout << "  Total Global Memory: " << prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
+            std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
+            std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
+            std::cout << "  Max threads per SM: " << prop.maxThreadsPerMultiProcessor << std::endl;
+            std::cout << "  Warp size: " << prop.warpSize << std::endl;
+            std::cout << "  Max grid dimensions: ("
+                      << prop.maxGridSize[0] << ", "
+                      << prop.maxGridSize[1] << ", "
+                      << prop.maxGridSize[2] << ")" << std::endl;
+            std::cout << "  Max block dimensions: ("
+                      << prop.maxThreadsDim[0] << ", "
+                      << prop.maxThreadsDim[1] << ", "
+                      << prop.maxThreadsDim[2] << ")" << std::endl;
+            std::cout << std::endl;
+        }
+    }
+
+
     if (bDebug && bErrorsOnly) {
         std::cout << "error: can't use -d and -e together" << std::endl;
         return 1;
@@ -90,11 +133,11 @@ int main(int argc, char ** argv)
     }
 
     if (bHelp) {
-        std::cout << g_strHelp << std::endl;
+        std::cout << "Version: " << g_strVersion << "\n" << g_strHelp << std::endl;
         return 0;
     }
-    if (bModeBenchmark) {
-        LOG_INFO("Benchmark mode enabled - application will run for 10 seconds");
+    if (benchmarkLimitLoops > 0 || benchmarkLimitTime > 0) {
+        LOG_WARNING("Benchmark mode enabled");
     }
     //normalize address
     factoryAddr = normalize_ethereum_address(factoryAddr);
@@ -124,15 +167,17 @@ int main(int argc, char ** argv)
 	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", (double)(init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
 
     double start = get_app_time_sec();
+    uint64_t loop_no = 0;
     while(true) {
 		if (g_exiting) {
 			break;
 		}
         create3_search(&init_data);
         double end = get_app_time_sec();
-        if (bModeBenchmark && (end - start) > 10) {
+        if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime) || (benchmarkLimitLoops > 0 && init_data.loops + 1 > benchmarkLimitLoops)) {
             break;
         }
+        loop_no += 1;
     }
     create3_data_destroy(&init_data);
     return 0;

@@ -14,8 +14,16 @@ usage: ./profanity_cuda [OPTIONS]
     -g Number of kernel groups to run in one kernel call (default 10000)
     -r Rounds (loops) to run inside the kernel (every thread looping) (default 2000)
 
+  Extra
+    -h Show this help
+    -v Show version
+
+  Debug
+    -s Seed for random number generator (default 0 means random)
+    -l Limit loops for benchmark (default 0 means no limit)
+    -b Limit time in seconds for benchmark (default 0 means no limit)
+
   About:
-    profanity_cuda version 0.1.0
     profanity_cuda is a vanity address generator for (modified) contractX deployer using CUDA.
 
   Binary compiled from:

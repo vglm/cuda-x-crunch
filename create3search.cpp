@@ -1,7 +1,6 @@
 #include "create3.h"
 #include "utils.hpp"
 #include "Logger.hpp"
-#include <random>
 #include <iostream>
 #include <cuda_runtime_api.h>
 #include <string>
@@ -28,13 +27,10 @@ void create3_data_destroy(create3_search_data *init_data)
 
 salt generate_random_salt() {
     salt randomSalt;
-    int64_t seed = std::chrono::nanoseconds(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    std::mt19937_64 generator(seed);
-
-    randomSalt.q[0] = generator();
-    randomSalt.q[1] = generator();
-    randomSalt.q[2] = generator();
-    randomSalt.q[3] = generator();
+    randomSalt.q[0] = get_next_random();
+    randomSalt.q[1] = get_next_random();
+    randomSalt.q[2] = get_next_random();
+    randomSalt.q[3] = get_next_random();
     return randomSalt;
 }
 

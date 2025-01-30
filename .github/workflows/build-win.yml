@@ -40,3 +40,4 @@ jobs:
         with:
           name: Executable
           path: Release/*
+          retention-days: 1
