@@ -27,3 +27,4 @@ jobs:
         with:
           name: profanity_cuda-12.4.1
           path: profanity_cuda
+          expires-in: 1h
