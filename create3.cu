@@ -166,27 +166,27 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         first.b[82] = 0x49;
         first.b[83] = 0x7c;
         first.b[84] = 0x1f;
-        first.b[85] = 0x01u;
+        first.b[85] = 0x01;
         //total length 85
         for (int i = 86; i < 135; ++i)
             first.b[i] = 0;
 
-        first.b[135] = 0x80u;
+        first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
         compute_keccak_full(&first);
 
-        first.b[0] = 0xd6u;
-        first.b[1] = 0x94u;
+        first.b[0] = 0xd6;
+        first.b[1] = 0x94;
         for (int i = 12; i < 32; i++) {
             first.b[i - 10] = first.b[i];
         }
 
-        first.b[22] = 0x01u;
-        first.b[23] = 0x01u;
+        first.b[22] = 0x01;
+        first.b[23] = 0x01;
         for (int i = 24; i < 135; ++i)
             first.b[i] = 0;
-        first.b[135] = 0x80u;
+        first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
 
@@ -259,27 +259,27 @@ __global__ void create3_search(search_result* const results, int rounds)
         first.b[82] = 0x49;
         first.b[83] = 0x7c;
         first.b[84] = 0x1f;
-        first.b[85] = 0x01u;
+        first.b[85] = 0x01;
         //total length 85
         for (int i = 86; i < 135; ++i)
             first.b[i] = 0;
 
-        first.b[135] = 0x80u;
+        first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
         compute_keccak_full(&first);
 
-        first.b[0] = 0xd6u;
-        first.b[1] = 0x94u;
+        first.b[0] = 0xd6;
+        first.b[1] = 0x94;
         for (int i = 12; i < 32; i++) {
             first.b[i - 10] = first.b[i];
         }
 
-        first.b[22] = 0x01u;
-        first.b[23] = 0x01u;
+        first.b[22] = 0x01;
+        first.b[23] = 0x01;
         for (int i = 24; i < 135; ++i)
             first.b[i] = 0;
-        first.b[135] = 0x80u;
+        first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
 

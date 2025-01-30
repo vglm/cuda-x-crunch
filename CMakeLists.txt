@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 
 project(profanity_cuda LANGUAGES CXX CUDA)
 
+set(CMAKE_CUDA_FLAGS_DEBUG "-G -O0")
 
 set(CMAKE_CXX_STANDARD 20)
 
