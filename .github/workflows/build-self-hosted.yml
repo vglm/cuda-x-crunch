@@ -1,4 +1,4 @@
-name: Build windows
+name: Build self hosted
 
 on:
   push:
