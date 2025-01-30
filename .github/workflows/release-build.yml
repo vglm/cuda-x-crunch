@@ -1,0 +1,29 @@
+name: Release-build-12.4.1
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build-release:
+    name: Build Project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cuda toolkit
+        uses: Jimver/cuda-toolkit@v0.2.19
+        with:
+          cuda: '12.4.1'
+
+      - name: Run build script
+        run: python build-cross.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: profanity_cuda-12.4.1
+          path: profanity_cuda
