@@ -101,22 +101,41 @@ int main(int argc, char ** argv)
             cudaDeviceProp prop;
             cudaGetDeviceProperties(&prop, device);
 
-            std::cout << "Device " << device << ": " << prop.name << std::endl;
-            std::cout << "  Compute capability: " << prop.major << "." << prop.minor << std::endl;
-            std::cout << "  Total Global Memory: " << prop.totalGlobalMem / (1024 * 1024) << " MB" << std::endl;
-            std::cout << "  Multiprocessors: " << prop.multiProcessorCount << std::endl;
-            std::cout << "  Max threads per block: " << prop.maxThreadsPerBlock << std::endl;
-            std::cout << "  Max threads per SM: " << prop.maxThreadsPerMultiProcessor << std::endl;
-            std::cout << "  Warp size: " << prop.warpSize << std::endl;
-            std::cout << "  Max grid dimensions: ("
-                      << prop.maxGridSize[0] << ", "
-                      << prop.maxGridSize[1] << ", "
-                      << prop.maxGridSize[2] << ")" << std::endl;
-            std::cout << "  Max block dimensions: ("
-                      << prop.maxThreadsDim[0] << ", "
-                      << prop.maxThreadsDim[1] << ", "
-                      << prop.maxThreadsDim[2] << ")" << std::endl;
-            std::cout << std::endl;
+            LOG_INFO("Device %d: %s", device, prop.name);
+            LOG_INFO("  Compute capability: %d.%d", prop.major, prop.minor);
+            //number of cuda cores
+            LOG_INFO("  CUDA Processors: %d", prop.multiProcessorCount);
+            // Calculate the number of CUDA cores
+            int cudaCoresPerSM = 0;
+            switch (prop.major) {
+                case 2: // Fermi
+                    cudaCoresPerSM = prop.minor == 0 ? 32 : 48;
+                    break;
+                case 3: // Kepler
+                    cudaCoresPerSM = 192;
+                    break;
+                case 5: // Maxwell
+                    cudaCoresPerSM = 128;
+                    break;
+                case 6: // Pascal
+                    if (prop.minor == 0) cudaCoresPerSM = 64;
+                    else if (prop.minor == 1) cudaCoresPerSM = 128;
+                    break;
+                case 7: // Volta and Turing
+                    if (prop.minor == 0) cudaCoresPerSM = 64;  // Volta
+                    else if (prop.minor == 5) cudaCoresPerSM = 64;  // Turing
+                    break;
+                case 8: // Ampere
+                    cudaCoresPerSM = 128;
+                    break;
+                case 9: // Ampere
+                    cudaCoresPerSM = 128;
+                    break;
+                default:
+                    LOG_WARNING("Unknown device - assuming 128 CUDA cores per SM");
+                    cudaCoresPerSM = 128;
+            }
+            LOG_INFO("  CUDA Cores: %d", cudaCoresPerSM * prop.multiProcessorCount);
         }
     }
 
@@ -164,7 +183,7 @@ int main(int argc, char ** argv)
     LOG_INFO("Groups: %d", init_data.kernel_groups);
 
 	create3_data_init(&init_data);
-	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", (double)(init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
+	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
 
     double start = get_app_time_sec();
     uint64_t loop_no = 0;
@@ -174,7 +193,8 @@ int main(int argc, char ** argv)
 		}
         create3_search(&init_data);
         double end = get_app_time_sec();
-        if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime) || (benchmarkLimitLoops > 0 && init_data.loops + 1 > benchmarkLimitLoops)) {
+        if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+            || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
             break;
         }
         loop_no += 1;
