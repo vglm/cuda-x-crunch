@@ -1,4 +1,4 @@
-name: Build ubuntu
+name: Build in docker
 
 on:
   push:
@@ -15,7 +15,7 @@ on:
 
 
 jobs:
-  build:
+  build-in-docker:
     runs-on: ubuntu-latest
 
     permissions:

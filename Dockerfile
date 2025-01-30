@@ -1,4 +1,4 @@
-FROM ghcr.io/vglm/cuda-build-base:cuda-12.8-ubuntu-22.04 as builder
+FROM ghcr.io/vglm/cuda-build-base:latest as builder
 COPY . /app
 WORKDIR /app
 RUN git clean -fdx
