@@ -25,7 +25,7 @@ jobs:
       - name: Build project
         run: |
           cmake .
-          build_release_win.bat
+          cmd /c build_release_win.bat
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
