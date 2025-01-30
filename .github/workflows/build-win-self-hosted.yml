@@ -33,6 +33,10 @@ jobs:
           name: Executable
           path: Release/*
 
+      - name: Run benchmark
+        run: |
+          .\Release\profanity_cuda.exe -b
+
       - name: Cleanup
         run: |
-          del /f /q .\*
+          Remove-Item -Path .\* -Recurse -Force
