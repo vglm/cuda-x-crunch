@@ -27,7 +27,7 @@ def upload_many_to_serv(upload_many):
         addresses.append(address)
     response = requests.post(API_URL, json=json_array)
     if response.status_code == 200:
-        print(f"Successfully uploaded {addresses}")
+        print("Successfully uploaded {} - {}".format(addresses, response.json()['totalScore']))
         return True
     else:
         print(f"Failed to upload {address}. Status code: {response.status_code}")
