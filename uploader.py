@@ -39,7 +39,7 @@ def main():
 
             # Get all CSV files in the folder with the naming pattern addr_1_2.csv
             csv_files = glob.glob(os.path.join(FOLDER_PATH, 'addr_*.csv'))
-            csv_files = csv_files[0:20]
+            csv_files = csv_files[0:50]
             upload_many = []
             if not csv_files:
                 print("No CSV files found in the specified folder.")
