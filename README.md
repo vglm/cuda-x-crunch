@@ -16,6 +16,16 @@ build_release_win.bat
 
 You may have to fix msbuild path in the script if needed.
 
+## Performance results
+
+
+RTX 3060: 350 Mh/s
+
+With parameters: -k 256 -g 10000 -r 2000
+RTX 3090: 990 Mh/s
+RTX 4090: 2320 Mh/s
+
+
 ##
 
 This project uses parts of code from following projects:

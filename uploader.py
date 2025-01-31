@@ -6,7 +6,7 @@ import glob
 
 # Configuration
 FOLDER_PATH = 'output'  # Path to the folder containing the CSV files
-API_URL = 'https://addressology.ovh/api/fancy/new'  # API endpoint URL
+API_URL = 'https://addressology.ovh/api/fancy/new_many'  # API endpoint URL
 
 def upload_file(salt, address, factory, version):
     """Uploads a file to the specified API endpoint."""
@@ -18,13 +18,29 @@ def upload_file(salt, address, factory, version):
         print(f"Failed to upload {address}. Status code: {response.status_code}")
         return False
 
+def upload_many_to_serv(upload_many):
+    """Uploads a file to the specified API endpoint."""
+    json_array = []
+    addresses = []
+    for salt, address, factory, version in upload_many:
+        json_array.append({'salt': salt, 'address': address, 'factory': factory, 'miner': version})
+        addresses.append(address)
+    response = requests.post(API_URL, json=json_array)
+    if response.status_code == 200:
+        print(f"Successfully uploaded {addresses}")
+        return True
+    else:
+        print(f"Failed to upload {address}. Status code: {response.status_code}")
+        return False
+
 def main():
     while True:
         try:
 
             # Get all CSV files in the folder with the naming pattern addr_1_2.csv
             csv_files = glob.glob(os.path.join(FOLDER_PATH, 'addr_*.csv'))
-
+            csv_files = csv_files[0:20]
+            upload_many = []
             if not csv_files:
                 print("No CSV files found in the specified folder.")
             else:
@@ -37,9 +53,12 @@ def main():
                     factory = data.split(',')[2]
                     version = data.split(',')[3]
 
-                    if upload_file(salt, address, factory, version):
-                        # If the upload was successful, delete the file
-                        os.remove(csv_file)
+                    upload_many.append((salt, address, factory, version))
+            if upload_many and upload_many_to_serv(upload_many):
+                # If the upload was successful, delete the file
+                for csv_file in csv_files:
+                    os.remove(csv_file)
+                continue
         except Exception as e:
             print(f"An error occurred: {e}")
 
