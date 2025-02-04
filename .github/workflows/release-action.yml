@@ -78,6 +78,8 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: [profanity_cuda-12.4.1, profanity_cuda-12.0]
+          files: |
+            profanity_cuda-12.4.1
+            profanity_cuda-12.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
