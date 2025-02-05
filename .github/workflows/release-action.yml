@@ -43,6 +43,8 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
           cuda: '12.0.1'
+          use-github-cache: 'false'
+          use-local-cache: 'false'
 
       - name: Run build script
         run: |
