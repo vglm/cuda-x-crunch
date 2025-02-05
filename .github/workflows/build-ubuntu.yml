@@ -26,6 +26,8 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
           cuda: '12.4.1'
+          method: 'network'
+          sub-packages: '[]'
 
       - name: Build project
         run: |
