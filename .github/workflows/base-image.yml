@@ -37,7 +37,7 @@ jobs:
 
       - name: Build Docker runtime image
         run: |
-          docker build --squash -f runtime/slim.dockerfile -t ghcr.io/${{ github.repository_owner }}/cuda-runtime-slim:${{ github.event.inputs.tag }} .
+          docker build -f runtime/slim.dockerfile -t ghcr.io/${{ github.repository_owner }}/cuda-runtime-slim:${{ github.event.inputs.tag }} .
 
       - name: Push Docker image
         if: ${{ github.event.inputs.runtime-only == 'false' }}

@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:22.04 AS base
 RUN rm -rf /var
 RUN rm -rf /etc/* || true
 RUN rm -rf /usr/share
@@ -21,3 +21,6 @@ RUN find /usr/lib/x86_64-linux-gnu -type f  \
     -delete
 RUN rm -rf /usr/sbing
 RUN rm -rf /usr/bin
+
+FROM scratch
+COPY --from=base / /
