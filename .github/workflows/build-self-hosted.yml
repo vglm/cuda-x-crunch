@@ -1,8 +1,6 @@
 name: Build self hosted
 
 on:
-  push:
-    branches: [ "main", "actions/build" ]
   workflow_dispatch:
     inputs:
       build_type:
@@ -12,7 +10,6 @@ on:
       target:
         description: 'Optional compilation target'
         required: false
-
 
 jobs:
   build-windows:
