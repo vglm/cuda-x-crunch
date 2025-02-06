@@ -28,7 +28,7 @@ jobs:
           tar -xvf gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
           mv gvmkit-build /usr/local/bin
           rm gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
-          gvmkit-build --version
+          gvmkit-build -h
 
       - name: Cuda toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
