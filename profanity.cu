@@ -65,7 +65,7 @@ int main(int argc, char ** argv)
     int kernelSize = 256;
     int groups = 1000;
     int rounds = 1000;
-    std::string strOutputDirectory = "output";
+    std::string strOutputDirectory = "";
     std::string factoryAddr = "0x9E3F8eaE49E442A323EF2094f277Bf62752E6995";
 
     argp.addSwitch('s', "seed", uSeed);
