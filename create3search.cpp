@@ -73,13 +73,6 @@ void create3_search(create3_search_data *init_data)
             newSalt.d[0] = f[n].id;
             newSalt.d[1] = f[n].round;
             std::string hexAddr = bytes_to_ethereum_address(f[n].addr);
-            std::string outputDir = init_data->outputDir;
-            // Ensure output directory exists
-
-            std::filesystem::path outDirPath(outputDir);
-            if (!std::filesystem::exists(outDirPath)) {
-                std::filesystem::create_directories(outDirPath);
-            }
 
             char salt[65] = {0};
             for (int i = 0; i < 32; i++) {
@@ -88,9 +81,17 @@ void create3_search(create3_search_data *init_data)
             salt[64] = 0;
             printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr.c_str(), init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
 
-            if (strnlen(outputDir) == 0) {
+            if (strnlen(init_data->outputDir) == 0) {
                 continue;
             }
+            std::string outputDir = init_data->outputDir;
+            // Ensure output directory exists
+
+            std::filesystem::path outDirPath(outputDir);
+            if (!std::filesystem::exists(outDirPath)) {
+                std::filesystem::create_directories(outDirPath);
+            }
+
             std::string fileName = init_data->outputDir + std::string("/addr_") + hexAddr + ".csv";
 
             FILE *out_file = fopen(fileName.c_str(), "w");
