@@ -54,7 +54,7 @@ jobs:
           gvmkit-build cuda --push-to nvidia/profanity-cuda:12.4.1
         env:
           REGISTRY_USER: nvidia
-          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
