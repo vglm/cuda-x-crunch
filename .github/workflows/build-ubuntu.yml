@@ -22,6 +22,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install gvmkit-build
+        run: |
+          wget https://github.com/golemfactory/gvmkit-build-rs/releases/download/v0.3.19/gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          tar -xvf gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          mv gvmkit-build /usr/local/bin
+          rm gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          gvmkit-build --version
+
       - name: Cuda toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
@@ -32,6 +40,12 @@ jobs:
       - name: Build project
         run: |
           python build-cross.py
+
+      - name: Free some space by removing CUDA libaries
+        run: |
+          df
+          sudo rm -rf /usr/local/cuda*
+          df
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
