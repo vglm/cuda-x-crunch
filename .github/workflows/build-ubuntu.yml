@@ -33,7 +33,7 @@ jobs:
       - name: Cuda toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
-          cuda: '12.2.1'
+          cuda: '12.4.1'
 
       - name: Build project
         run: |
@@ -49,8 +49,8 @@ jobs:
         run: |
           cp profanity_cuda runtime/
           cd runtime
-          docker build -t nvidia/profanity-cuda:12.2.1 .
-          gvmkit-build nvidia/profanity-cuda:12.2.1
+          docker build -t nvidia/profanity-cuda:12.4.1 .
+          gvmkit-build nvidia/profanity-cuda:12.4.1
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
