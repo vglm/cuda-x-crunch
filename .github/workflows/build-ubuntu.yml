@@ -46,18 +46,15 @@ jobs:
         run: |
           python build-cross.py
 
-      - name: Free some space by removing CUDA libraries
-        run: |
-          df
-          sudo rm -rf /usr/local/cuda*
-          df
-
-      - name: Create docker
+      - name: Create gvmkit image
         run: |
           cp profanity_cuda runtime/
           cd runtime
-          docker build -t nvidia/profanity-cuda:12.4.1 .
-          gvmkit-build nvidia/profanity-cuda:12.4.1
+          docker build -t cuda .
+          gvmkit-build cuda --push-to nvidia/profanity-cuda:12.4.1
+        env:
+          REGISTRY_USER: nvidia
+          REGISTRY_PASSWORD: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
