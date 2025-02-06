@@ -88,7 +88,7 @@ void create3_search(create3_search_data *init_data)
             salt[64] = 0;
             printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr.c_str(), init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
 
-            if (str_len(outputDir) == 0) {
+            if (strnlen(outputDir) == 0) {
                 continue;
             }
             std::string fileName = init_data->outputDir + std::string("/addr_") + hexAddr + ".csv";
