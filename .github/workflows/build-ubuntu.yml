@@ -33,19 +33,24 @@ jobs:
       - name: Cuda toolkit
         uses: Jimver/cuda-toolkit@v0.2.19
         with:
-          cuda: '12.4.1'
-          method: 'network'
-          sub-packages: '[]'
+          cuda: '12.2.1'
 
       - name: Build project
         run: |
           python build-cross.py
 
-      - name: Free some space by removing CUDA libaries
+      - name: Free some space by removing CUDA libraries
         run: |
           df
           sudo rm -rf /usr/local/cuda*
           df
+
+      - name: Create docker
+        run: |
+          cp profanity_cuda docker
+          cd docker
+          docker build -t profanity_cuda .
+          gvmkit-build profanity_cuda
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
