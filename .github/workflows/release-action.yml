@@ -97,6 +97,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: read
 
     steps:
       - name: Download artifact
@@ -113,6 +114,41 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: profanity_cuda-12.8.0
+
+      - name: Install gvmkit-build
+        run: |
+          wget https://github.com/golemfactory/gvmkit-build-rs/releases/download/v0.3.19/gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          tar -xvf gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          mv gvmkit-build /usr/local/bin
+          rm gvmkit-build-x86_64-unknown-linux-gnu.tar.gz
+          gvmkit-build -h
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create gvmkit image
+        run: |
+          cp profanity_cuda-12.2.1 runtime/profanity_cuda
+          cd runtime
+          docker build -t cuda .
+          gvmkit-build cuda --push-to nvidia/cuda-x-crunch:prod-12.2.1
+        env:
+          REGISTRY_USER: nvidia
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Create gvmkit image
+        run: |
+          cp profanity_cuda-12.4.1 runtime/profanity_cuda
+          cd runtime
+          docker build -t cuda2 .
+          gvmkit-build cuda2 --push-to nvidia/cuda-x-crunch:prod-12.4.1
+        env:
+          REGISTRY_USER: nvidia
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
