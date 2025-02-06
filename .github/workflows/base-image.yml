@@ -7,6 +7,10 @@ on:
         description: 'Tag for the base Docker image'
         required: true
         default: 'latest'
+      runtime-only:
+        description: 'Only runtime'
+        required: false
+        default: 'false'
 
 jobs:
   build-and-push:
@@ -28,12 +32,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker image
+        if: ${{ github.event.inputs.runtime-only == 'false' }}
         run: docker build -f Dockerfile_base -t ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }} .
 
       - name: Build Docker runtime image
         run: docker build -f runtime/slim.dockerfile -t ghcr.io/${{ github.repository_owner }}/cuda-runtime-slim:${{ github.event.inputs.tag }} .
 
       - name: Push Docker image
+        if: ${{ github.event.inputs.runtime-only == 'false' }}
         run: |
           docker push ghcr.io/${{ github.repository_owner }}/cuda-build-base:${{ github.event.inputs.tag }}
+
+      - name: Push Docker image
+        run: |
           docker push ghcr.io/${{ github.repository_owner }}/cuda-runtime-slim:${{ github.event.inputs.tag }}
