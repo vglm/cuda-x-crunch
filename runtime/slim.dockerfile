@@ -19,7 +19,7 @@ RUN find /usr/lib/x86_64-linux-gnu -type f  \
     ! -name "libgcc_s*"  \
     ! -name "ld-linux-x86-64.so*"  \
     -delete
-RUN rm -rf /usr/sbing
+RUN rm -rf /usr/sbin
 RUN rm -rf /usr/bin
 
 FROM scratch
