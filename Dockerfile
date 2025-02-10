@@ -1,4 +1,5 @@
-FROM ghcr.io/vglm/cuda-build-base:latest as builder
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
+RUN apt update && apt install -y git cmake
 COPY . /app
 WORKDIR /app
 RUN git clean -fdx
