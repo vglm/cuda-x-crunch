@@ -24,3 +24,5 @@ RUN rm -rf /usr/bin
 
 FROM scratch
 COPY --from=base / /
+COPY profanity_cuda /usr/local/bin/profanity_cuda
+CMD ["/usr/local/bin/profanity_cuda"]

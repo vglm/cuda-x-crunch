@@ -64,7 +64,7 @@ jobs:
 
   build-release-12-8-0:
     name: Build Ubuntu 12.8.0
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -149,6 +149,16 @@ jobs:
           cd runtime
           docker build -f ubuntu2204.dockerfile -t cuda2 .
           gvmkit-build cuda2 --push-to nvidia/cuda-x-crunch:prod-12.4.1
+        env:
+          REGISTRY_USER: nvidia
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Create gvmkit image slim 12.4.1
+        run: |
+          cp profanity_cuda-12.4.1 runtime/profanity_cuda
+          cd runtime
+          docker build -f slim2204.dockerfile -t cuda-slim2204 .
+          gvmkit-build cuda-slim2204 --push-to nvidia/cuda-x-crunch:prod-slim-12.4.1
         env:
           REGISTRY_USER: nvidia
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
