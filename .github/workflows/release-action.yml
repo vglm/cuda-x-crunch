@@ -133,22 +133,32 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create gvmkit image
+      - name: Create gvmkit image 12.2.1
         run: |
           cp profanity_cuda-12.2.1 runtime/profanity_cuda
           cd runtime
-          docker build -t cuda .
+          docker build -f ubuntu2204.dockerfile -t cuda .
           gvmkit-build cuda --push-to nvidia/cuda-x-crunch:prod-12.2.1
         env:
           REGISTRY_USER: nvidia
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
-      - name: Create gvmkit image
+      - name: Create gvmkit image 12.4.1
         run: |
           cp profanity_cuda-12.4.1 runtime/profanity_cuda
           cd runtime
-          docker build -t cuda2 .
+          docker build -f ubuntu2204.dockerfile -t cuda2 .
           gvmkit-build cuda2 --push-to nvidia/cuda-x-crunch:prod-12.4.1
+        env:
+          REGISTRY_USER: nvidia
+          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
+
+      - name: Create gvmkit image 12.8.0
+        run: |
+          cp profanity_cuda-12.8.0 runtime/profanity_cuda
+          cd runtime
+          docker build -f ubuntu2404.dockerfile -t cuda3 .
+          gvmkit-build cuda3 --push-to nvidia/cuda-x-crunch:prod-12.8.0
         env:
           REGISTRY_USER: nvidia
           REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
