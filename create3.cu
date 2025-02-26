@@ -333,7 +333,27 @@ __global__ void create3_search(search_result* const results, int rounds)
             }
             leading_score -= 50;
 
-            if (pattern_score >= 3 || etherscan_score >= 8 || group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40) {
+            int pattern = 0;
+            int number = first.d[3];
+
+
+            if (number == 0xbadbabe0 
+                || number == 0xb00bbabe
+                || number == 0xc0ffee00
+                || number == 0xdaedbeef
+                || number == 0x31415926??
+                
+                ) {
+                pattern = 1;
+            }
+
+
+            if (
+                pattern //|| 
+/*
+                pattern_score >= 3 || etherscan_score >= 8 || group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40
+  */              
+                ) {
                 results[id].round = round;
                 results[id].id = id;
 
