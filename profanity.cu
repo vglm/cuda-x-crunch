@@ -65,6 +65,7 @@ int main(int argc, char ** argv)
     int kernelSize = 256;
     int groups = 1000;
     int rounds = 1000;
+    std::string publicKey = "";
     std::string strOutputDirectory = "";
     std::string factoryAddr = "0x9E3F8eaE49E442A323EF2094f277Bf62752E6995";
 
@@ -80,6 +81,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('k', "kernel", kernelSize);
     argp.addSwitch('g', "groups", groups);
     argp.addSwitch('r', "rounds", rounds);
+    argp.addSwitch('z', "public", publicKey);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -92,6 +94,17 @@ int main(int argc, char ** argv)
     if (bVersion) {
         std::cout << g_strVersion;
         return 0;
+    }
+    bool lookForPrivateKeys = false;
+    if (publicKey.size() > 0) {
+
+        lookForPrivateKeys = true;
+        LOG_INFO("Public key given, searching for private keys instead of create3: %s", publicKey.c_str());
+        publicKey = normalize_public_key(publicKey);
+        if (publicKey.empty()) {
+            std::cout << "error: bad public key" << std::endl;
+            return 1;
+        }
     }
     {
         int deviceCount;
@@ -158,48 +171,53 @@ int main(int argc, char ** argv)
     if (benchmarkLimitLoops > 0 || benchmarkLimitTime > 0) {
         LOG_WARNING("Benchmark mode enabled");
     }
-    //normalize address
-    factoryAddr = normalize_ethereum_address(factoryAddr);
-    if (factoryAddr.empty()) {
-        std::cout << "error: bad factory address" << std::endl;
-        return 1;
-    }
-
-	create3_search_data init_data = { 0 };
-    memcpy(init_data.factory, factoryAddr.c_str(), 40);
-    if (strOutputDirectory.size() > 1000) {
-        std::cout << "error: output directory too long" << std::endl;
-        return 1;
-    }
-    memcpy(init_data.outputDir, strOutputDirectory.c_str(), strOutputDirectory.size());
-    init_data.rounds = rounds;
-    init_data.kernel_group_size = kernelSize;
-    init_data.kernel_groups = groups;
-
-    LOG_INFO("Initializing with params:");
-    LOG_INFO("Factory address: 0x%s", init_data.factory);
-    LOG_INFO("Output directory: %s", init_data.outputDir);
-    LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
-    LOG_INFO("Groups: %d", init_data.kernel_groups);
-
-	create3_data_init(&init_data);
-	LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
-
-    double start = get_app_time_sec();
-    uint64_t loop_no = 0;
-    while(true) {
-		if (g_exiting) {
-			break;
-		}
-        create3_search(&init_data);
-        double end = get_app_time_sec();
-        if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
-            || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
-            break;
+    if (!lookForPrivateKeys) {
+        //normalize address
+        factoryAddr = normalize_ethereum_address(factoryAddr);
+        if (factoryAddr.empty()) {
+            std::cout << "error: bad factory address" << std::endl;
+            return 1;
         }
-        loop_no += 1;
+
+        create3_search_data init_data = { 0 };
+        memcpy(init_data.factory, factoryAddr.c_str(), 40);
+        if (strOutputDirectory.size() > 1000) {
+            std::cout << "error: output directory too long" << std::endl;
+            return 1;
+        }
+        memcpy(init_data.outputDir, strOutputDirectory.c_str(), strOutputDirectory.size());
+        init_data.rounds = rounds;
+        init_data.kernel_group_size = kernelSize;
+        init_data.kernel_groups = groups;
+
+        LOG_INFO("Initializing with params:");
+        LOG_INFO("Factory address: 0x%s", init_data.factory);
+        LOG_INFO("Output directory: %s", init_data.outputDir);
+        LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
+        LOG_INFO("Groups: %d", init_data.kernel_groups);
+
+        create3_data_init(&init_data);
+        LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
+
+        double start = get_app_time_sec();
+        uint64_t loop_no = 0;
+        while(true) {
+            if (g_exiting) {
+                break;
+            }
+            create3_search(&init_data);
+            double end = get_app_time_sec();
+            if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+                || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
+                break;
+            }
+            loop_no += 1;
+        }
+        create3_data_destroy(&init_data);
+        return 0;
+    } else {
+        LOG_INFO("Searching for private keys for public key: %s", publicKey.c_str());
+        return 0;
     }
-    create3_data_destroy(&init_data);
-    return 0;
 
 }
