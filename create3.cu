@@ -308,8 +308,33 @@ __global__ void create3_search(search_result* const results, int rounds)
                     break;
                 }
             }
+            int patternbaba = 0;
+            int dis = 0;
             for (int i = 0; i < 40; i++) {
                 uint8_t letter = let_full[i];
+                
+                dis -= 1;
+                if (i < 37) {
+                    if (dis < 0 && let_full[i + 0] == 0xb && let_full[i + 1] == 0xb && let_full[i + 2] == 0x5 && let_full[i + 3] == 0x0) {
+                        if (i == 0) {
+                            patternbaba += 1;
+                        }
+                        if (i == 4) {
+                            patternbaba += 1;
+                        }
+                        dis = 3;
+                    }
+                    if (dis < 0 && let_full[i + 0] == 0x0 && let_full[i + 1] == 0xb && let_full[i + 2] == 0xb && let_full[i + 3] == 0x5) {
+                        if (i == 36) {
+                            patternbaba += 1;
+                        }
+                        if (i == 32) {
+                            patternbaba += 1;
+                        }
+                        dis = 3;
+                    }
+
+               }
                 if (leading_score < 50 && letter == first_letter) {
                     leading_score += 1;
                 }
@@ -337,11 +362,12 @@ __global__ void create3_search(search_result* const results, int rounds)
             int number = first.d[3];
 
 
+
             if (number == 0xbadbabe0 
                 || number == 0xb00bbabe
                 || number == 0xc0ffee00
                 || number == 0xdaedbeef
-                || number == 0x31415926??
+                || number == 0x31415926
                 
                 ) {
                 pattern = 1;
@@ -349,7 +375,7 @@ __global__ void create3_search(search_result* const results, int rounds)
 
 
             if (
-                pattern //|| 
+                patternbaba >= 2 //|| 
 /*
                 pattern_score >= 3 || etherscan_score >= 8 || group_score >= 15 || leading_score >= 8 || letter_score > 32 || number_score >= 40
   */              
