@@ -1,13 +1,15 @@
 #pragma once
 
+#include <cctype>
+
 #define MP_WORDS 8
 #define MP_BITS 32
 
 typedef unsigned int mp_word;
-typedef struct {
-	mp_word d[MP_WORDS];
+typedef union {
+    mp_word d[MP_WORDS];
+    unsigned char b[32];
 } mp_number;
-
 
 /* ------------------------------------------------------------------------ */
 /* Elliptic point and addition (with caveats).                              */
@@ -31,4 +33,5 @@ typedef union
     struct {
         unsigned long long  s0, s1, s2, s3;
     };
+    mp_number mpn;
 } cl_ulong4;

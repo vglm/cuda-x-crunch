@@ -285,6 +285,8 @@ int main(int argc, char ** argv)
         init_data.rounds = rounds;
         init_data.kernel_group_size = kernelSize;
         init_data.kernel_groups = groups;
+        init_data.public_key_x = clSeedX.mpn;
+        init_data.public_key_y = clSeedY.mpn;
 
         //LOG_INFO("Factory address: 0x%s", init_data.factory);
         //LOG_INFO("Output directory: %s", init_data.outputDir);

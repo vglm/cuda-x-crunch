@@ -1,12 +1,13 @@
 #include "create3.h"
-#include "utils.hpp"
-#include "Logger.hpp"
-#include <iostream>
-#include <cuda_runtime_api.h>
-#include <string>
-#include <filesystem>
-#include <cstring>
 
+__constant__ mp_number g_publicKeyX = {0};
+__constant__ mp_number g_publicKeyY = {0};
+
+void update_public_key(const mp_number &x, const mp_number &y)
+{
+    cudaMemcpyToSymbol(g_publicKeyX, &x, sizeof(mp_number));
+    cudaMemcpyToSymbol(g_publicKeyY, &y, sizeof(mp_number));
+}
 
 __global__ void private_search(search_result* const results, int rounds)
 {
@@ -15,10 +16,12 @@ __global__ void private_search(search_result* const results, int rounds)
 
     int round_no = 3;
     for (int i = 0; i < 20; i++) {
-        results[id].addr[i] = 0x01;
+        results[id].addr[i] = g_publicKeyX.b[i];
     }
-    results[id].id = id;
-    results[id].round = round_no;
+    if (id == 100) {
+        results[id].id = id;
+        results[id].round = round_no;
+    }
 
 
 }

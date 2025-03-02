@@ -52,7 +52,7 @@ void private_data_search(private_search_data *init_data)
     cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
-
+    update_public_key(init_data->public_key_x, init_data->public_key_y);
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
         if (f[n].round != 0) {

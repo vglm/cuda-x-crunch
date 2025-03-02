@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.hpp"
+
 #include <cstdint>
 
 struct factory {
@@ -53,6 +55,8 @@ void run_kernel_create3_search(create3_search_data * data);
 // private key search
 
 struct private_search_data {
+    mp_number public_key_x;
+    mp_number public_key_y;
     int rounds;
     int kernel_group_size;
     int kernel_groups;
@@ -63,6 +67,7 @@ struct private_search_data {
 };
 
 
+void update_public_key(mp_number const& x, mp_number const& y);
 void private_data_init(private_search_data *init_data);
 void private_data_search(private_search_data *init_data);
 void private_data_destroy(private_search_data *init_data);
