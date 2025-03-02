@@ -50,3 +50,24 @@ void update_device_factory(const uint8_t* factory);
 void update_device_salt(const salt* salt);
 void run_kernel_create3_search(create3_search_data * data);
 
+// private key search
+
+struct private_search_data {
+    int rounds;
+    int kernel_group_size;
+    int kernel_groups;
+    search_result * device_result;
+    search_result * host_result;
+    uint64_t total_compute;
+    double time_started;
+};
+
+
+void private_data_init(private_search_data *init_data);
+void private_data_search(private_search_data *init_data);
+void private_data_destroy(private_search_data *init_data);
+void run_kernel_private_search(private_search_data * data);
+
+salt generate_random_salt();
+
+

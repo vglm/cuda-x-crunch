@@ -16,3 +16,19 @@ typedef struct {
 	mp_number x;
 	mp_number y;
 } point;
+
+typedef union
+{
+    struct {
+        unsigned long long s[4];
+    };
+    struct {
+    	mp_word d[MP_WORDS];
+    };
+    struct {
+        unsigned long long  x, y, z, w;
+    };
+    struct {
+        unsigned long long  s0, s1, s2, s3;
+    };
+} cl_ulong4;

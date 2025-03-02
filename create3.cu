@@ -200,7 +200,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 #endif
 
-__global__ void create3_search(search_result* const results, int rounds)
+__global__ void create3_search_kernel(search_result* const results, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
@@ -510,5 +510,5 @@ void test_create3()
 #endif
 
 void run_kernel_create3_search(create3_search_data * data) {
-    create3_search<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+    create3_search_kernel<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
 }

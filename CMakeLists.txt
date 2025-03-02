@@ -13,6 +13,8 @@ add_executable(profanity_cuda
   ArgParser.hpp
   keccak.cu
   keccak.h
+  private_key.cu
+  private_key_search.cpp
   create3.cu
   create3search.cpp
   create3.h
