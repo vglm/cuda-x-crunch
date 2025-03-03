@@ -489,22 +489,34 @@ void update_public_key(const mp_number &x, const mp_number &y)
     cudaMemcpyToSymbol(g_publicKeyY, &y, sizeof(mp_number));
 }
 
-__device__ void profanity_init_seed(const point * const precomp, point * const p, bool * const pIsFirst, const size_t precompOffset, const uint32_t seed) {
-	point o;
 
-	for (uint8_t i = 0; i < 8; ++i) {
-		const uint8_t shift = i * 8;
-		const uint8_t byte = (seed >> shift) & 0xFF;
+
+__device__ void profanity_init_seed_first(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+	point o;
+    bool bIsFirst = true;
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
 
 		if (byte) {
 			o = precomp[precompOffset + i * 255 + byte - 1];
-			if (*pIsFirst) {
-				*p = o;
-				*pIsFirst = false;
-			}
-			else {
-				point_add(p, p, &o);
-			}
+            if (bIsFirst) {
+                *p = o;
+                bIsFirst = false;
+            } else {
+                point_add(p, p, &o);
+            }
+		}
+	}
+}
+__device__ void profanity_init_seed(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+	point o;
+
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
+
+		if (byte) {
+			o = precomp[precompOffset + i * 255 + byte - 1];
+            point_add(p, p, &o);
 		}
 	}
 }
@@ -543,7 +555,9 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 	point tmp3;
 
 	// Calculate k*G where k = seed.wzyx (in other words, find the point indicated by the private key represented in seed)
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 0, seed.x);
+	profanity_init_seed_first(precomp, &p_random, 8 * 255 * 0, seed.x);
+		pPrevLambda[id].d[0] = p_random.x.d[0];
+
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, seed.y);
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, seed.z);
 	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, seed.w);
@@ -553,7 +567,7 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 	mp_mod_sub_gx(&tmp1, &p.x);
 	mp_mod_inverse(&tmp1);
 
-	mp_mod_sub_gy(&tmp2, &p.y);
+	mp_mod_sub_gy(&tmp2, &p.y); 
 	mp_mod_mul(&tmp1, &tmp1, &tmp2);
 
 	// Jump to next point (precomp[0] is the generator point G)
@@ -564,73 +578,11 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 	mp_mod_sub_gx(&p.x, &p.x);
 
 	pDeltaX[id] = p.x;
-	pPrevLambda[id] = tmp1;
-}
-
-__global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const pInverse, mp_number * const pPrevLambda) {
-	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
-	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
-    const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
-
-	ethhash h = { { 0 } };
-
-	mp_number dX = pDeltaX[id];
-	mp_number tmp = pInverse[id];
-	mp_number lambda = pPrevLambda[id];
-
-	// λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
-	mp_mod_sub(&lambda, &tmp, &lambda);
-
-	// λ² = λ * λ <=> tmp := lambda * lambda = λ²
-	mp_mod_mul(&tmp, &lambda, &lambda);
-
-	// d' = λ² - d - 3g = (-3g) - (d - λ²) <=> x := tripleNegativeGx - (x - tmp)
-	mp_mod_sub(&dX, &dX, &tmp);
-	mp_mod_sub_const(&dX, &tripleNegativeGx, &dX);
-
-	pDeltaX[id] = dX;
-	pPrevLambda[id] = lambda;
-
-	// Calculate y from dX and lambda
-	// y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
-	mp_mod_mul(&tmp, &lambda, &dX);
-	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
-
-	// Restore X coordinate from delta value
-	mp_mod_sub(&dX, &dX, &negativeGx);
-
-	// Initialize Keccak structure with point coordinates in big endian
-	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
-	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
-	h.d[2] = bswap32(dX.d[MP_WORDS - 3]);
-	h.d[3] = bswap32(dX.d[MP_WORDS - 4]);
-	h.d[4] = bswap32(dX.d[MP_WORDS - 5]);
-	h.d[5] = bswap32(dX.d[MP_WORDS - 6]);
-	h.d[6] = bswap32(dX.d[MP_WORDS - 7]);
-	h.d[7] = bswap32(dX.d[MP_WORDS - 8]);
-	h.d[8] = bswap32(tmp.d[MP_WORDS - 1]);
-	h.d[9] = bswap32(tmp.d[MP_WORDS - 2]);
-	h.d[10] = bswap32(tmp.d[MP_WORDS - 3]);
-	h.d[11] = bswap32(tmp.d[MP_WORDS - 4]);
-	h.d[12] = bswap32(tmp.d[MP_WORDS - 5]);
-	h.d[13] = bswap32(tmp.d[MP_WORDS - 6]);
-	h.d[14] = bswap32(tmp.d[MP_WORDS - 7]);
-	h.d[15] = bswap32(tmp.d[MP_WORDS - 8]);
-	h.d[16] ^= 0x01; // length 64
-
-	sha3_keccakf(&h);
-
-	// Save public address hash in pInverse, only used as interim storage until next cycle
-	pInverse[id].d[0] = h.d[3];
-	pInverse[id].d[1] = h.d[4];
-	pInverse[id].d[2] = h.d[5];
-	pInverse[id].d[3] = h.d[6];
-	pInverse[id].d[4] = h.d[7];
 }
 
 
 __global__ void profanity_inverse(const mp_number * const pDeltaX, mp_number * const pInverse) {
-    const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+    	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
 	// negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
 	mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
@@ -668,6 +620,74 @@ __global__ void profanity_inverse(const mp_number * const pDeltaX, mp_number * c
 	pInverse[id] = copy1;
 }
 
+__global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const pInverse, mp_number * const pPrevLambda) {
+        const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
+	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
+
+	ethhash h = { { 0 } };
+
+	mp_number dX = pDeltaX[id];
+	mp_number tmp = pInverse[id];
+	mp_number lambda = pPrevLambda[id];
+
+	// λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
+	mp_mod_sub(&lambda, &tmp, &lambda);
+
+	// λ² = λ * λ <=> tmp := lambda * lambda = λ²
+	mp_mod_mul(&tmp, &lambda, &lambda);
+
+	// d' = λ² - d - 3g = (-3g) - (d - λ²) <=> x := tripleNegativeGx - (x - tmp)
+	mp_mod_sub(&dX, &dX, &tmp);
+	mp_mod_sub_const(&dX, &tripleNegativeGx, &dX);
+
+	pDeltaX[id] = dX;
+	//pPrevLambda[id] = lambda;
+
+	// Calculate y from dX and lambda
+	// y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
+	mp_mod_mul(&tmp, &lambda, &dX);
+	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
+
+	// Restore X coordinate from delta value
+	mp_mod_sub(&dX, &dX, &negativeGx);
+
+	// Initialize Keccak structure with point coordinates in big endian
+	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
+	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
+	h.d[2] = bswap32(dX.d[MP_WORDS - 3]);
+	h.d[3] = bswap32(dX.d[MP_WORDS - 4]);
+	h.d[4] = bswap32(dX.d[MP_WORDS - 5]);
+	h.d[5] = bswap32(dX.d[MP_WORDS - 6]);
+	h.d[6] = bswap32(dX.d[MP_WORDS - 7]);
+	h.d[7] = bswap32(dX.d[MP_WORDS - 8]);
+	h.d[8] = bswap32(tmp.d[MP_WORDS - 1]);
+	h.d[9] = bswap32(tmp.d[MP_WORDS - 2]);
+	h.d[10] = bswap32(tmp.d[MP_WORDS - 3]);
+	h.d[11] = bswap32(tmp.d[MP_WORDS - 4]);
+	h.d[12] = bswap32(tmp.d[MP_WORDS - 5]);
+	h.d[13] = bswap32(tmp.d[MP_WORDS - 6]);
+	h.d[14] = bswap32(tmp.d[MP_WORDS - 7]);
+	h.d[15] = bswap32(tmp.d[MP_WORDS - 8]);
+	h.d[16] ^= 0x01; // length 64
+
+	sha3_keccakf(&h);
+
+	// Save public address hash in pInverse, only used as interim storage until next cycle
+	/*pInverse[id].d[0] = h.d[3];
+	pInverse[id].d[1] = h.d[4];
+	pInverse[id].d[2] = h.d[5];
+	pInverse[id].d[3] = h.d[6];
+	pInverse[id].d[4] = h.d[7];*/
+	pInverse[id].d[0] = pPrevLambda[id].d[0];
+	pInverse[id].d[1] = 0;
+	pInverse[id].d[2] = 0;
+	pInverse[id].d[3] = 0;
+	pInverse[id].d[4] = 0;
+}
+
+
+
 
 __global__ void profanity_score(mp_number * const pInverse, search_result* const results) {
     const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
@@ -698,8 +718,13 @@ void run_kernel_private_search(private_search_data * data) {
         data->public_key_y);
 
 
-    profanity_inverse<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_deltaX, data->device_pInverse);
-    profanity_iterate<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(data->device_deltaX, data->device_pInverse, data->device_prev_lambda);
+    profanity_inverse<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse);
+    profanity_iterate<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse,
+        data->device_prev_lambda);
     profanity_score<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(data->device_pInverse, data->device_result);
 
 
