@@ -1,8 +1,12 @@
 #include "create3.h"
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
-#define rotate32(x, s) ((x << s) | (x >> (32U - s)))
-#define bswap32(n) (rotate32(n & 0x00FF00FFU, 24U)|(rotate32(n, 8U) & 0x00FF00FFU))
+#define bswap32(num) (( \
+    ((num>>24)&0xff) | \
+                        ((num<<8)&0xff0000) | \
+                        ((num>>8)&0xff00) | \
+                        ((num<<24)&0xff000000)) \
+)
 
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
@@ -22,14 +26,14 @@ __device__ const mp_number mod              = { {0xfffffc2f, 0xfffffffe, 0xfffff
 // negativeGy       = 0xb7c52588d95c3b9aa25b0403f1eef75702e84bb7597aabe663b82f6f04ef2777
 
 // Multiprecision subtraction. Underflow signalled via return value.
-__device__ mp_word mp_sub(mp_number * const r, const mp_number * const a, const mp_number * const b) {
+__device__ mp_word mp_sub(mp_number& r, const mp_number& a, const mp_number& b) {
 	mp_word t, c = 0;
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		t = a->d[i] - b->d[i] - c;
-		c = t > a->d[i] ? 1 : (t == a->d[i] ? c : 0);
+		t = a.d[i] - b.d[i] - c;
+		c = t > a.d[i] ? 1 : (t == a.d[i] ? c : 0);
 
-		r->d[i] = t;
+		r.d[i] = t;
 	}
 
 	return c;
@@ -38,195 +42,195 @@ __device__ mp_word mp_sub(mp_number * const r, const mp_number * const a, const 
 
 
 // Multiprecision subtraction of the modulus saved in mod. Underflow signalled via return value.
-__device__ mp_word mp_sub_mod(mp_number * const r) {
+__device__ mp_word mp_sub_mod(mp_number& r) {
 	mp_number mod = { {0xfffffc2fU, 0xfffffffeU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU, 0xffffffffU} };
 
 	mp_word t, c = 0;
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		t = r->d[i] - mod.d[i] - c;
-		c = t > r->d[i] ? 1 : (t == r->d[i] ? c : 0);
+		t = r.d[i] - mod.d[i] - c;
+		c = t > r.d[i] ? 1 : (t == r.d[i] ? c : 0);
 
-		r->d[i] = t;
+		r.d[i] = t;
 	}
 
 	return c;
 }
 
 
-__device__ void mp_mod_sub(mp_number* const r, const mp_number* const a, const mp_number* const b) {
+__device__ void mp_mod_sub(mp_number& r, const mp_number& a, const mp_number& b) {
 	mp_word i, t, c = 0;
 
 	for (i = 0; i < MP_WORDS; ++i) {
-		t = a->d[i] - b->d[i] - c;
-		c = t < a->d[i] ? 0 : (t == a->d[i] ? c : 1);
+		t = a.d[i] - b.d[i] - c;
+		c = t < a.d[i] ? 0 : (t == a.d[i] ? c : 1);
 
-		r->d[i] = t;
+		r.d[i] = t;
 	}
 
 	if (c) {
 		c = 0;
 		for (i = 0; i < MP_WORDS; ++i) {
-			r->d[i] += mod.d[i] + c;
-			c = r->d[i] < mod.d[i] ? 1 : (r->d[i] == mod.d[i] ? c : 0);
+			r.d[i] += mod.d[i] + c;
+			c = r.d[i] < mod.d[i] ? 1 : (r.d[i] == mod.d[i] ? c : 0);
 		}
 	}
 }
 
-__device__ void mp_mod_sub_const(mp_number* const r, const mp_number* const a, const mp_number* const b) {
+__device__ void mp_mod_sub_const(mp_number& r, const mp_number& a, const mp_number& b) {
 	mp_word i, t, c = 0;
 
 	for (i = 0; i < MP_WORDS; ++i) {
-		t = a->d[i] - b->d[i] - c;
-		c = t < a->d[i] ? 0 : (t == a->d[i] ? c : 1);
+		t = a.d[i] - b.d[i] - c;
+		c = t < a.d[i] ? 0 : (t == a.d[i] ? c : 1);
 
-		r->d[i] = t;
+		r.d[i] = t;
 	}
 
 	if (c) {
 		c = 0;
 		for (i = 0; i < MP_WORDS; ++i) {
-			r->d[i] += mod.d[i] + c;
-			c = r->d[i] < mod.d[i] ? 1 : (r->d[i] == mod.d[i] ? c : 0);
+			r.d[i] += mod.d[i] + c;
+			c = r.d[i] < mod.d[i] ? 1 : (r.d[i] == mod.d[i] ? c : 0);
 		}
 	}
 }
 
 
-__device__ void mp_mod_sub_gx(mp_number* const r, const mp_number* const a) {
+__device__ void mp_mod_sub_gx(mp_number& r, const mp_number& a) {
 	mp_word i, t, c = 0;
 
-	t = a->d[0] - 0x16f81798U; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
-	t = a->d[1] - 0x59f2815bU - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
-	t = a->d[2] - 0x2dce28d9U - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
-	t = a->d[3] - 0x029bfcdbU - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
-	t = a->d[4] - 0xce870b07U - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
-	t = a->d[5] - 0x55a06295U - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
-	t = a->d[6] - 0xf9dcbbacU - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
-	t = a->d[7] - 0x79be667eU - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
+	t = a.d[0] - 0x16f81798U; c = t < a.d[0] ? 0 : (t == a.d[0] ? c : 1); r.d[0] = t;
+	t = a.d[1] - 0x59f2815bU - c; c = t < a.d[1] ? 0 : (t == a.d[1] ? c : 1); r.d[1] = t;
+	t = a.d[2] - 0x2dce28d9U - c; c = t < a.d[2] ? 0 : (t == a.d[2] ? c : 1); r.d[2] = t;
+	t = a.d[3] - 0x029bfcdbU - c; c = t < a.d[3] ? 0 : (t == a.d[3] ? c : 1); r.d[3] = t;
+	t = a.d[4] - 0xce870b07U - c; c = t < a.d[4] ? 0 : (t == a.d[4] ? c : 1); r.d[4] = t;
+	t = a.d[5] - 0x55a06295U - c; c = t < a.d[5] ? 0 : (t == a.d[5] ? c : 1); r.d[5] = t;
+	t = a.d[6] - 0xf9dcbbacU - c; c = t < a.d[6] ? 0 : (t == a.d[6] ? c : 1); r.d[6] = t;
+	t = a.d[7] - 0x79be667eU - c; c = t < a.d[7] ? 0 : (t == a.d[7] ? c : 1); r.d[7] = t;
 
 	if (c) {
 		c = 0;
 		for (i = 0; i < MP_WORDS; ++i) {
-			r->d[i] += mod.d[i] + c;
-			c = r->d[i] < mod.d[i] ? 1 : (r->d[i] == mod.d[i] ? c : 0);
+			r.d[i] += mod.d[i] + c;
+			c = r.d[i] < mod.d[i] ? 1 : (r.d[i] == mod.d[i] ? c : 0);
 		}
 	}
 }
 
 // Multiprecision subtraction modulo M of G_y from a number.
 // Specialization of mp_mod_sub in hope of performance gain.
-__device__ void mp_mod_sub_gy(mp_number* const r, const mp_number* const a) {
+__device__ void mp_mod_sub_gy(mp_number& r, const mp_number& a) {
 	mp_word i, t, c = 0;
 
-	t = a->d[0] - 0xfb10d4b8U; c = t < a->d[0] ? 0 : (t == a->d[0] ? c : 1); r->d[0] = t;
-	t = a->d[1] - 0x9c47d08fU - c; c = t < a->d[1] ? 0 : (t == a->d[1] ? c : 1); r->d[1] = t;
-	t = a->d[2] - 0xa6855419U - c; c = t < a->d[2] ? 0 : (t == a->d[2] ? c : 1); r->d[2] = t;
-	t = a->d[3] - 0xfd17b448U - c; c = t < a->d[3] ? 0 : (t == a->d[3] ? c : 1); r->d[3] = t;
-	t = a->d[4] - 0x0e1108a8U - c; c = t < a->d[4] ? 0 : (t == a->d[4] ? c : 1); r->d[4] = t;
-	t = a->d[5] - 0x5da4fbfcU - c; c = t < a->d[5] ? 0 : (t == a->d[5] ? c : 1); r->d[5] = t;
-	t = a->d[6] - 0x26a3c465U - c; c = t < a->d[6] ? 0 : (t == a->d[6] ? c : 1); r->d[6] = t;
-	t = a->d[7] - 0x483ada77U - c; c = t < a->d[7] ? 0 : (t == a->d[7] ? c : 1); r->d[7] = t;
+	t = a.d[0] - 0xfb10d4b8U; c = t < a.d[0] ? 0 : (t == a.d[0] ? c : 1); r.d[0] = t;
+	t = a.d[1] - 0x9c47d08fU - c; c = t < a.d[1] ? 0 : (t == a.d[1] ? c : 1); r.d[1] = t;
+	t = a.d[2] - 0xa6855419U - c; c = t < a.d[2] ? 0 : (t == a.d[2] ? c : 1); r.d[2] = t;
+	t = a.d[3] - 0xfd17b448U - c; c = t < a.d[3] ? 0 : (t == a.d[3] ? c : 1); r.d[3] = t;
+	t = a.d[4] - 0x0e1108a8U - c; c = t < a.d[4] ? 0 : (t == a.d[4] ? c : 1); r.d[4] = t;
+	t = a.d[5] - 0x5da4fbfcU - c; c = t < a.d[5] ? 0 : (t == a.d[5] ? c : 1); r.d[5] = t;
+	t = a.d[6] - 0x26a3c465U - c; c = t < a.d[6] ? 0 : (t == a.d[6] ? c : 1); r.d[6] = t;
+	t = a.d[7] - 0x483ada77U - c; c = t < a.d[7] ? 0 : (t == a.d[7] ? c : 1); r.d[7] = t;
 
 	if (c) {
 		c = 0;
 		for (i = 0; i < MP_WORDS; ++i) {
-			r->d[i] += mod.d[i] + c;
-			c = r->d[i] < mod.d[i] ? 1 : (r->d[i] == mod.d[i] ? c : 0);
+			r.d[i] += mod.d[i] + c;
+			c = r.d[i] < mod.d[i] ? 1 : (r.d[i] == mod.d[i] ? c : 0);
 		}
 	}
 }
 
 // Multiprecision addition. Overflow signalled via return value.
-__device__ mp_word mp_add(mp_number* const r, const mp_number* const a) {
+__device__ mp_word mp_add(mp_number& r, const mp_number& a) {
 	mp_word c = 0;
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		r->d[i] += a->d[i] + c;
-		c = r->d[i] < a->d[i] ? 1 : (r->d[i] == a->d[i] ? c : 0);
+		r.d[i] += a.d[i] + c;
+		c = r.d[i] < a.d[i] ? 1 : (r.d[i] == a.d[i] ? c : 0);
 	}
 
 	return c;
 }
 
 // Multiprecision addition of the modulus saved in mod. Overflow signalled via return value.
-__device__ mp_word mp_add_mod(mp_number* const r) {
+__device__ mp_word mp_add_mod(mp_number& r) {
 	mp_word c = 0;
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		r->d[i] += mod.d[i] + c;
-		c = r->d[i] < mod.d[i] ? 1 : (r->d[i] == mod.d[i] ? c : 0);
+		r.d[i] += mod.d[i] + c;
+		c = r.d[i] < mod.d[i] ? 1 : (r.d[i] == mod.d[i] ? c : 0);
 	}
 
 	return c;
 }
 
 // Multiprecision addition of two numbers with one extra word each. Overflow signalled via return value.
-__device__ mp_word mp_add_more(mp_number* const r, mp_word* const extraR, const mp_number* const a, const mp_word* const extraA) {
+__device__ mp_word mp_add_more(mp_number& r, mp_word& extraR, const mp_number& a, const mp_word& extraA) {
 	const mp_word c = mp_add(r, a);
-	*extraR += *extraA + c;
-	return *extraR < *extraA ? 1 : (*extraR == *extraA ? c : 0);
+	extraR += extraA + c;
+	return extraR < extraA ? 1 : (extraR == extraA ? c : 0);
 }
 
 // Multiprecision greater than or equal (>=) operator
-__device__ mp_word mp_gte(const mp_number* const a, const mp_number* const b) {
+__device__ mp_word mp_gte(mp_number& a, const mp_number& b) {
 	mp_word l = 0, g = 0;
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		if (a->d[i] < b->d[i]) l |= (1 << i);
-		if (a->d[i] > b->d[i]) g |= (1 << i);
+		if (a.d[i] < b.d[i]) l |= (1 << i);
+		if (a.d[i] > b.d[i]) g |= (1 << i);
 	}
 
 	return g >= l;
 }
 
 // Bit shifts a number with an extra word to the right one step
-__device__ void mp_shr_extra(mp_number* const r, mp_word* const e) {
-	r->d[0] = (r->d[1] << 31) | (r->d[0] >> 1);
-	r->d[1] = (r->d[2] << 31) | (r->d[1] >> 1);
-	r->d[2] = (r->d[3] << 31) | (r->d[2] >> 1);
-	r->d[3] = (r->d[4] << 31) | (r->d[3] >> 1);
-	r->d[4] = (r->d[5] << 31) | (r->d[4] >> 1);
-	r->d[5] = (r->d[6] << 31) | (r->d[5] >> 1);
-	r->d[6] = (r->d[7] << 31) | (r->d[6] >> 1);
-	r->d[7] = (*e << 31) | (r->d[7] >> 1);
-	*e >>= 1;
+__device__ void mp_shr_extra(mp_number& r, mp_word& e) {
+	r.d[0] = (r.d[1] << 31) | (r.d[0] >> 1);
+	r.d[1] = (r.d[2] << 31) | (r.d[1] >> 1);
+	r.d[2] = (r.d[3] << 31) | (r.d[2] >> 1);
+	r.d[3] = (r.d[4] << 31) | (r.d[3] >> 1);
+	r.d[4] = (r.d[5] << 31) | (r.d[4] >> 1);
+	r.d[5] = (r.d[6] << 31) | (r.d[5] >> 1);
+	r.d[6] = (r.d[7] << 31) | (r.d[6] >> 1);
+	r.d[7] = (e << 31) | (r.d[7] >> 1);
+	e >>= 1;
 }
 
 // Bit shifts a number to the right one step
-__device__ void mp_shr(mp_number* const r) {
-	r->d[0] = (r->d[1] << 31) | (r->d[0] >> 1);
-	r->d[1] = (r->d[2] << 31) | (r->d[1] >> 1);
-	r->d[2] = (r->d[3] << 31) | (r->d[2] >> 1);
-	r->d[3] = (r->d[4] << 31) | (r->d[3] >> 1);
-	r->d[4] = (r->d[5] << 31) | (r->d[4] >> 1);
-	r->d[5] = (r->d[6] << 31) | (r->d[5] >> 1);
-	r->d[6] = (r->d[7] << 31) | (r->d[6] >> 1);
-	r->d[7] >>= 1;
+__device__ void mp_shr(mp_number& r) {
+	r.d[0] = (r.d[1] << 31) | (r.d[0] >> 1);
+	r.d[1] = (r.d[2] << 31) | (r.d[1] >> 1);
+	r.d[2] = (r.d[3] << 31) | (r.d[2] >> 1);
+	r.d[3] = (r.d[4] << 31) | (r.d[3] >> 1);
+	r.d[4] = (r.d[5] << 31) | (r.d[4] >> 1);
+	r.d[5] = (r.d[6] << 31) | (r.d[5] >> 1);
+	r.d[6] = (r.d[7] << 31) | (r.d[6] >> 1);
+	r.d[7] >>= 1;
 }
 
 // Multiplies a number with a word and adds it to an existing number with an extra word, overflow of the extra word is signalled in return value
 // This is a special function only used for modular multiplication
-__device__ mp_word mp_mul_word_add_extra(mp_number* const r, const mp_number* const a, const mp_word w, mp_word* const extra) {
+__device__ mp_word mp_mul_word_add_extra(mp_number& r, const mp_number& a, const mp_word w, mp_word& extra) {
 	mp_word cM = 0; // Carry for multiplication
 	mp_word cA = 0; // Carry for addition
 	mp_word tM = 0; // Temporary storage for multiplication
 
 	for (mp_word i = 0; i < MP_WORDS; ++i) {
-		tM = (a->d[i] * w + cM);
-		cM = mul_hi(a->d[i], w) + (tM < cM);
+		tM = (a.d[i] * w + cM);
+		cM = mul_hi(a.d[i], w) + (tM < cM);
 
-		r->d[i] += tM + cA;
-		cA = r->d[i] < tM ? 1 : (r->d[i] == tM ? cA : 0);
+		r.d[i] += tM + cA;
+		cA = r.d[i] < tM ? 1 : (r.d[i] == tM ? cA : 0);
 	}
 
-	*extra += cM + cA;
-	return *extra < cM ? 1 : (*extra == cM ? cA : 0);
+	extra += cM + cA;
+	return extra < cM ? 1 : (extra == cM ? cA : 0);
 }
 
 // Multiplies a number with a word, potentially adds modhigher to it, and then subtracts it from en existing number, no extra words, no overflow
 // This is a special function only used for modular multiplication
-__device__ void mp_mul_mod_word_sub(mp_number* const r, const mp_word w, const bool withModHigher) {
+__device__ void mp_mul_mod_word_sub(mp_number& r, const mp_word w, const bool withModHigher) {
 	// Having these numbers declared here instead of using the global values in __constant address space seems to lead
 	// to better optimizations by the compiler on my GTX 1070.
 	mp_number mod = { { 0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
@@ -245,10 +249,10 @@ __device__ void mp_mul_mod_word_sub(mp_number* const r, const mp_word w, const b
 		tM += (withModHigher ? modhigher.d[i] : 0) + cA;
 		cA = tM < (withModHigher ? modhigher.d[i] : 0) ? 1 : (tM == (withModHigher ? modhigher.d[i] : 0) ? cA : 0);
 
-		tS = r->d[i] - tM - cS;
-		cS = tS > r->d[i] ? 1 : (tS == r->d[i] ? cS : 0);
+		tS = r.d[i] - tM - cS;
+		cS = tS > r.d[i] ? 1 : (tS == r.d[i] ? cS : 0);
 
-		r->d[i] = tS;
+		r.d[i] = tS;
 	}
 }
 
@@ -260,7 +264,7 @@ __device__ void mp_mul_mod_word_sub(mp_number* const r, const mp_word w, const b
 // trade it for the final steps? Maybe the final steps are necessary but seldom needed?
 // I have no idea, for the time being I'll leave it like this, also see the comments at the
 // beginning of this document under the title "Cutting corners".
-__device__ void mp_mod_mul(mp_number* const r, const mp_number* const X, const mp_number* const Y) {
+__device__ void mp_mod_mul(mp_number& r, const mp_number& X, const mp_number& Y) {
 	mp_number Z = { {0} };
 	mp_word extraWord;
 
@@ -269,17 +273,17 @@ __device__ void mp_mod_mul(mp_number* const r, const mp_number* const X, const m
 		extraWord = Z.d[7]; Z.d[7] = Z.d[6]; Z.d[6] = Z.d[5]; Z.d[5] = Z.d[4]; Z.d[4] = Z.d[3]; Z.d[3] = Z.d[2]; Z.d[2] = Z.d[1]; Z.d[1] = Z.d[0]; Z.d[0] = 0;
 
 		// Z = Z + X * Y_i
-		bool overflow = mp_mul_word_add_extra(&Z, X, Y->d[i], &extraWord);
+		bool overflow = mp_mul_word_add_extra(Z, X, Y.d[i], extraWord);
 
 		// Z = Z - qM
-		mp_mul_mod_word_sub(&Z, extraWord, overflow);
+		mp_mul_mod_word_sub(Z, extraWord, overflow);
 	}
 
-	*r = Z;
+	r = Z;
 }
 
 // Modular inversion of a number.
-__device__ void mp_mod_inverse(mp_number* const r) {
+__device__ void mp_mod_inverse(mp_number& r) {
 	mp_number A = { { 1 } };
 	mp_number C = { { 0 } };
 	mp_number v = mod;
@@ -287,41 +291,41 @@ __device__ void mp_mod_inverse(mp_number* const r) {
 	mp_word extraA = 0;
 	mp_word extraC = 0;
 
-	while (r->d[0] || r->d[1] || r->d[2] || r->d[3] || r->d[4] || r->d[5] || r->d[6] || r->d[7]) {
-		while (!(r->d[0] & 1)) {
+	while (r.d[0] || r.d[1] || r.d[2] || r.d[3] || r.d[4] || r.d[5] || r.d[6] || r.d[7]) {
+		while (!(r.d[0] & 1)) {
 			mp_shr(r);
 			if (A.d[0] & 1) {
-				extraA += mp_add_mod(&A);
+				extraA += mp_add_mod(A);
 			}
 
-			mp_shr_extra(&A, &extraA);
+			mp_shr_extra(A, extraA);
 		}
 
 		while (!(v.d[0] & 1)) {
-			mp_shr(&v);
+			mp_shr(v);
 			if (C.d[0] & 1) {
-				extraC += mp_add_mod(&C);
+				extraC += mp_add_mod(C);
 			}
 
-			mp_shr_extra(&C, &extraC);
+			mp_shr_extra(C, extraC);
 		}
 
-		if (mp_gte(r, &v)) {
-			mp_sub(r, r, &v);
-			mp_add_more(&A, &extraA, &C, &extraC);
+		if (mp_gte(r, v)) {
+			mp_sub(r, r, v);
+			mp_add_more(A, extraA, C, extraC);
 		}
 		else {
-			mp_sub(&v, &v, r);
-			mp_add_more(&C, &extraC, &A, &extraA);
+			mp_sub(v, v, r);
+			mp_add_more(C, extraC, A, extraA);
 		}
 	}
 
 	while (extraC) {
-		extraC -= mp_sub_mod(&C);
+		extraC -= mp_sub_mod(C);
 	}
 
 	v = mod;
-	mp_sub(r, &v, &C);
+	mp_sub(r, v, C);
 }
 
 
@@ -437,10 +441,10 @@ __device__ uint64_t keccakf_rndc[24] = {
 };
 
 // Barely a bottleneck. No need to tinker more.
-__device__ void sha3_keccakf(ethhash* const h)
+__device__ void sha3_keccakf(ethhash& h)
 {
-    uint64_t * const st = (uint64_t *) h;
-	h->d[33] ^= 0x80000000;
+    uint64_t * const st = (uint64_t *) &h;
+	h.d[33] ^= 0x80000000;
 	uint64_t t0, t1, t2, t3, t4;
 
 	// Unrolling and removing PI stage gave negligible performance on GTX 1070.
@@ -454,28 +458,28 @@ __device__ void sha3_keccakf(ethhash* const h)
 // Elliptical point addition
 // Does not handle points sharing X coordinate, this is a deliberate design choice.
 // For more information on this choice see the beginning of this file.
-__device__ void point_add(point * const r, point * const p, point * const o) {
+__device__ void point_add(point& r, point& p, point& o) {
 	mp_number tmp;
 	mp_number newX;
 	mp_number newY;
 
-	mp_mod_sub(&tmp, &o->x, &p->x);
+	mp_mod_sub(tmp, o.x, p.x);
 
-	mp_mod_inverse(&tmp);
+	mp_mod_inverse(tmp);
 
-	mp_mod_sub(&newX, &o->y, &p->y);
-	mp_mod_mul(&tmp, &tmp, &newX);
+	mp_mod_sub(newX, o.y, p.y);
+	mp_mod_mul(tmp, tmp, newX);
 
-	mp_mod_mul(&newX, &tmp, &tmp);
-	mp_mod_sub(&newX, &newX, &p->x);
-	mp_mod_sub(&newX, &newX, &o->x);
+	mp_mod_mul(newX, tmp, tmp);
+	mp_mod_sub(newX, newX, p.x);
+	mp_mod_sub(newX, newX, o.x);
 
-	mp_mod_sub(&newY, &p->x, &newX);
-	mp_mod_mul(&newY, &newY, &tmp);
-	mp_mod_sub(&newY, &newY, &p->y);
+	mp_mod_sub(newY, p.x, newX);
+	mp_mod_mul(newY, newY, tmp);
+	mp_mod_sub(newY, newY, p.y);
 
-	r->x = newX;
-	r->y = newY;
+	r.x = newX;
+	r.y = newY;
 }
 
 
@@ -488,7 +492,7 @@ void update_public_key(const mp_number &x, const mp_number &y)
     cudaMemcpyToSymbol(g_publicKeyY, &y, sizeof(mp_number));
 }
 
-__device__ void profanity_init_seed_first(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+__device__ void profanity_init_seed_first(const point * const precomp, point& p, const uint32_t precompOffset, const uint64_t seed) {
 	point o;
     bool bIsFirst = true;
 	for (uint32_t i = 0; i < 8; ++i) {
@@ -497,16 +501,16 @@ __device__ void profanity_init_seed_first(const point * const precomp, point * c
 		if (byte) {
 			o = precomp[precompOffset + i * 255 + byte - 1];
             if (bIsFirst) {
-                *p = o;
+                p = o;
                 bIsFirst = false;
             } else {
-                point_add(p, p, &o);
+                point_add(p, p, o);
             }
 		}
 	}
 }
 
-__device__ void profanity_init_seed(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+__device__ void profanity_init_seed(const point * const precomp, point& p, const uint32_t precompOffset, const uint64_t seed) {
 	point o;
 
 	for (uint32_t i = 0; i < 8; ++i) {
@@ -514,7 +518,7 @@ __device__ void profanity_init_seed(const point * const precomp, point * const p
 
 		if (byte) {
 			o = precomp[precompOffset + i * 255 + byte - 1];
-            point_add(p, p, &o);
+            point_add(p, p, o);
 		}
 	}
 }
@@ -550,25 +554,25 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 	point tmp3;
 
 	// Calculate k*G where k = seed.wzyx (in other words, find the point indicated by the private key represented in seed)
-	profanity_init_seed_first(precomp, &p_random, 8 * 255 * 0, 1);
-	profanity_init_seed(precomp, &p_random, 8 * 255 * 1, 1);
-	profanity_init_seed(precomp, &p_random, 8 * 255 * 2, 1);
-	profanity_init_seed(precomp, &p_random, 8 * 255 * 3, 1);
-	point_add(&p, &p, &p_random);
+	profanity_init_seed_first(precomp, p_random, 8 * 255 * 0, seed.x);
+	profanity_init_seed(precomp, p_random, 8 * 255 * 1, seed.y);
+	profanity_init_seed(precomp, p_random, 8 * 255 * 2, seed.z);
+	profanity_init_seed(precomp, p_random, 8 * 255 * 3, seed.w + id);
+	point_add(p, p, p_random);
 
 	// Calculate current lambda in this point
-	mp_mod_sub_gx(&tmp1, &p.x);
-	mp_mod_inverse(&tmp1);
+	mp_mod_sub_gx(tmp1, p.x);
+	mp_mod_inverse(tmp1);
 
-	mp_mod_sub_gy(&tmp2, &p.y);
-	mp_mod_mul(&tmp1, &tmp1, &tmp2);
+	mp_mod_sub_gy(tmp2, p.y);
+	mp_mod_mul(tmp1, tmp1, tmp2);
 
 	// Jump to next point (precomp[0] is the generator point G)
 	tmp3 = precomp[0];
-	point_add(&p, &tmp3, &p);
+	point_add(p, tmp3, p);
 
 	// pDeltaX should contain the delta (x - G_x)
-	mp_mod_sub_gx(&p.x, &p.x);
+	mp_mod_sub_gx(p.x, p.x);
 
 	pDeltaX[id] = p.x;
 	pPrevLambda[id] = tmp1;
@@ -591,23 +595,23 @@ __global__ void profanity_inverse(const mp_number * const pDeltaX, mp_number * c
 	buffer[0] = pDeltaX[id];
 	for (int32_t i = 1; i < PROFANITY_INVERSE_SIZE; ++i) {
 		buffer2[i] = pDeltaX[id + i];
-		mp_mod_mul(&buffer[i], &buffer2[i], &buffer[i - 1]);
+		mp_mod_mul(buffer[i], buffer2[i], buffer[i - 1]);
 	}
 
 	// Take the inverse of all x-values combined
 	copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
-	mp_mod_inverse(&copy1);
+	mp_mod_inverse(copy1);
 
 	// We multiply in -2G_y together with the inverse so that we have:
 	//            - 2 * G_y
 	//  ----------------------------
 	//  x_0 * x_1 * x_2 * x_3 * ...
-	mp_mod_mul(&copy1, &copy1, &negativeDoubleGy);
+	mp_mod_mul(copy1, copy1, negativeDoubleGy);
 
 	// Multiply out each individual inverse using the buffers
 	for (int32_t i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
-		mp_mod_mul(&copy2, &copy1, &buffer[i - 1]);
-		mp_mod_mul(&copy1, &copy1, &buffer2[i]);
+		mp_mod_mul(copy2, copy1, buffer[i - 1]);
+		mp_mod_mul(copy1, copy1, buffer2[i]);
 		pInverse[id + i] = copy2;
 	}
 
@@ -627,25 +631,25 @@ __global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const p
 	mp_number lambda = pPrevLambda[id];
 
 	// λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
-	mp_mod_sub(&lambda, &tmp, &lambda);
+	mp_mod_sub(lambda, tmp, lambda);
 
 	// λ² = λ * λ <=> tmp := lambda * lambda = λ²
-	mp_mod_mul(&tmp, &lambda, &lambda);
+	mp_mod_mul(tmp, lambda, lambda);
 
 	// d' = λ² - d - 3g = (-3g) - (d - λ²) <=> x := tripleNegativeGx - (x - tmp)
-	mp_mod_sub(&dX, &dX, &tmp);
-	mp_mod_sub_const(&dX, &tripleNegativeGx, &dX);
+	mp_mod_sub(dX, dX, tmp);
+	mp_mod_sub_const(dX, tripleNegativeGx, dX);
 
 	pDeltaX[id] = dX;
 	pPrevLambda[id] = lambda;
 
 	// Calculate y from dX and lambda
 	// y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
-	mp_mod_mul(&tmp, &lambda, &dX);
-	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
+	mp_mod_mul(tmp, lambda, dX);
+	mp_mod_sub_const(tmp, negativeGy, tmp);
 
 	// Restore X coordinate from delta value
-	mp_mod_sub(&dX, &dX, &negativeGx);
+	mp_mod_sub(dX, dX, negativeGx);
 
 	// Initialize Keccak structure with point coordinates in big endian
 	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
@@ -666,7 +670,7 @@ __global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const p
 	h.d[15] = bswap32(tmp.d[MP_WORDS - 8]);
 	h.d[16] ^= 0x01; // length 64
 
-	sha3_keccakf(&h);
+	sha3_keccakf(h);
 
 	// Save public address hash in pInverse, only used as interim storage until next cycle
 	pInverse[id].d[0] = h.d[3];
@@ -684,7 +688,7 @@ __global__ void profanity_score(mp_number * const pInverse, search_result* const
         int score = 0;
 
         results[id].id = id;
-        results[id].round = 1;
+        results[id].round = 2;
 
         for (int i = 0; i < 20; i++) {
             results[id].addr[i] = inv.b[i];
