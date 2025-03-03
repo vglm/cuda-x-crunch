@@ -1,8 +1,12 @@
 #include "create3.h"
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
-#define rotate32(x, s) ((x << s) | (x >> (32U - s)))
-#define bswap32(n) (rotate32(n & 0x00FF00FFU, 24U)|(rotate32(n, 8U) & 0x00FF00FFU))
+#define bswap32(num) (( \
+    ((num>>24)&0xff) | \
+                        ((num<<8)&0xff0000) | \
+                        ((num>>8)&0xff00) | \
+                        ((num<<24)&0xff000000)) \
+)
 
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
@@ -646,10 +650,10 @@ __global__ void profanity_iterate(mp_number * pDeltaX, mp_number * pInverse, mp_
 
 	// Restore X coordinate from delta value
 	mp_mod_sub(dX, dX, negativeGx);
-
 	// Initialize Keccak structure with point coordinates in big endian
 	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
-	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
+
+    	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
 	h.d[2] = bswap32(dX.d[MP_WORDS - 3]);
 	h.d[3] = bswap32(dX.d[MP_WORDS - 4]);
 	h.d[4] = bswap32(dX.d[MP_WORDS - 5]);
@@ -667,13 +671,15 @@ __global__ void profanity_iterate(mp_number * pDeltaX, mp_number * pInverse, mp_
 	h.d[16] ^= 0x01; // length 64
 
 	sha3_keccakf(h);
-
+	//pInverse[id].d[0] = h.d[0];
 	// Save public address hash in pInverse, only used as interim storage until next cycle
 	pInverse[id].d[0] = h.d[3];
 	pInverse[id].d[1] = h.d[4];
 	pInverse[id].d[2] = h.d[5];
 	pInverse[id].d[3] = h.d[6];
 	pInverse[id].d[4] = h.d[7];
+
+
 }
 
 __global__ void profanity_score(mp_number * pInverse, search_result* const results) {
