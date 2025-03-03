@@ -1,4 +1,4 @@
-#include "keccak.h"
+#include "create3.h"
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
 #define rotate32(x, s) ((x << s) | (x >> (32U - s)))
@@ -12,6 +12,7 @@ __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aa
 
 // mod              = 0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f
 __device__ const mp_number mod              = { {0xfffffc2f, 0xfffffffe, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff} };
+
 
 // tripleNegativeGx = 0x92c4cc831269ccfaff1ed83e946adeeaf82c096e76958573f2287becbb17b196
 
@@ -450,95 +451,283 @@ __device__ void sha3_keccakf(ethhash* const h)
 		IOTA(st[0], keccakf_rndc[i]);
 	}
 }
-__global__ void sha3_keccakf_host(ethhash* const ethash_data)
-{
-	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+// Elliptical point addition
+// Does not handle points sharing X coordinate, this is a deliberate design choice.
+// For more information on this choice see the beginning of this file.
+__device__ void point_add(point * const r, point * const p, point * const o) {
+	mp_number tmp;
+	mp_number newX;
+	mp_number newY;
 
-    sha3_keccakf(&ethash_data[id]);
+	mp_mod_sub(&tmp, &o->x, &p->x);
+
+	mp_mod_inverse(&tmp);
+
+	mp_mod_sub(&newX, &o->y, &p->y);
+	mp_mod_mul(&tmp, &tmp, &newX);
+
+	mp_mod_mul(&newX, &tmp, &tmp);
+	mp_mod_sub(&newX, &newX, &p->x);
+	mp_mod_sub(&newX, &newX, &o->x);
+
+	mp_mod_sub(&newY, &p->x, &newX);
+	mp_mod_mul(&newY, &newY, &tmp);
+	mp_mod_sub(&newY, &newY, &p->y);
+
+	r->x = newX;
+	r->y = newY;
 }
 
-void test_keccakf()
+
+__constant__ mp_number g_publicKeyX = {0};
+__constant__ mp_number g_publicKeyY = {0};
+
+
+void update_public_key(const mp_number &x, const mp_number &y)
 {
-    const int kernel_group_size = 64;
-    const int ethash_count = 10000 * kernel_group_size;
-    printf("Generating test data %d...\n", ethash_count);
-
-    uint8_t public_key[64];
-    const char* test_public_key = "65b3b3a2d97271fee54c747f796f123e5895a4bc096016fbc5163c8f51084ae8e8cda24b16cc02f0f8a33e8d890d7212d113d2ee33202d416f6401cc7614e85d";
-
-    for (int i = 0; i < 64; i++) {
-        unsigned int byte;
-        sscanf(test_public_key + i * 2, "%2x", &byte); // Parse 2-character hex string
-        public_key[i] = (uint8_t)(byte);
-    }
-
-    ethhash* h = new ethhash[ethash_count]();
-    for (int n = 0; n < ethash_count; n++) {
-        for (int i = 0; i < 25; i++) {
-            h[n].q[i] = 0;
-        }
-        memcpy(h[n].b, public_key, 64);
-        h[n].b[64] = 0x01;
-    }
-
-    ethhash* deviceHash = NULL;
-    cudaMalloc(&deviceHash, sizeof(ethhash) * ethash_count);
-    printf("Copying data to device %d MB...\n", (uint32_t)(sizeof(ethhash) * ethash_count / 1024 / 1024));
-
-    cudaMemcpy(deviceHash, h, sizeof(ethhash) * ethash_count, cudaMemcpyHostToDevice);
-    cudaDeviceSynchronize();
-
-    auto error = cudaGetLastError();
-    if (error != cudaSuccess)
-    {
-        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
-        exit(1);
-    }
-    printf("Running keccak kernel...\n");
-    auto start = std::chrono::high_resolution_clock::now();
-    const uint64_t current_time = time(NULL);
-    sha3_keccakf_host<<<ethash_count / kernel_group_size, kernel_group_size>>>(deviceHash);
-    cudaDeviceSynchronize();
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-
-    // Output the duration
-    std::cout << "Time taken: " << duration.count() / 1000.0 / 1000.0 << " ms" << std::endl;
-
-    printf("Start data: ");
-    for (int i = 0; i < 200; i++) {
-        printf("%02x", h[0].b[i]);
-    }
-    printf("\n");
-
-
-    printf("Copying data back...\n");
-    cudaMemcpy(h, deviceHash, ethash_count * sizeof(ethhash), cudaMemcpyDeviceToHost);
-
-    printf("Freeing device memory...\n");
-    cudaFree(deviceHash);
-    error = cudaGetLastError();
-    if (error != cudaSuccess)
-    {
-        printf("Initialize keccak test failed %s\n",cudaGetErrorString(error));
-        exit(1);
-    }
-
-    printf("Checking results...\n");
-    for (int n = 0; n < ethash_count; n++) {
-        char hexAddr[43] = { 0 };
-        hexAddr[0] = '0';
-        hexAddr[1] = 'x';
-        for (int i = 12; i < 32; i++) {
-            sprintf(&hexAddr[(i - 12) * 2 + 2], "%02x", h[n].b[i]);
-        }
-        if (strcmp(hexAddr, "0xcaa74ee0ee88bfed69a41ef7bd15d21a15cd8a43") != 0) {
-            printf("Keccak test failed expected %s got %s\n", "0xcaa74ee0ee88bfed69a41ef7bd15d21a15cd8a43", hexAddr);
-            exit(1);
-        }
-    }
-    printf("Keccak test passed\n");
-
-    printf("Freeing host memory...\n");
-    delete[] h;
+    cudaMemcpyToSymbol(g_publicKeyX, &x, sizeof(mp_number));
+    cudaMemcpyToSymbol(g_publicKeyY, &y, sizeof(mp_number));
 }
+
+
+
+__device__ void profanity_init_seed_first(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+	point o;
+    bool bIsFirst = true;
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
+
+		if (byte) {
+			o = precomp[precompOffset + i * 255 + byte - 1];
+            if (bIsFirst) {
+                *p = o;
+                bIsFirst = false;
+            } else {
+                point_add(p, p, &o);
+            }
+		}
+	}
+}
+__device__ void profanity_init_seed(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+	point o;
+
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
+
+		if (byte) {
+			o = precomp[precompOffset + i * 255 + byte - 1];
+            point_add(p, p, &o);
+		}
+	}
+}
+typedef struct {
+	uint32_t found;
+	uint32_t foundId;
+	uint8_t foundHash[20];
+} result;
+#define PROFANITY_MAX_SCORE 40
+
+
+
+
+__global__ void profanity_init(const point * const precomp, mp_number * const pDeltaX, mp_number * const pPrevLambda, const cl_ulong4 seed, const cl_ulong4 seedX, const cl_ulong4 seedY) {
+    const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+
+	point p = {
+		.x = {.d = {
+			seedX.x & 0xFFFFFFFF, seedX.x >> 32,
+			seedX.y & 0xFFFFFFFF, seedX.y >> 32,
+			seedX.z & 0xFFFFFFFF, seedX.z >> 32,
+			seedX.w & 0xFFFFFFFF, seedX.w >> 32,
+		}},
+		.y = {.d = {
+			seedY.x & 0xFFFFFFFF, seedY.x >> 32,
+			seedY.y & 0xFFFFFFFF, seedY.y >> 32,
+			seedY.z & 0xFFFFFFFF, seedY.z >> 32,
+			seedY.w & 0xFFFFFFFF, seedY.w >> 32,
+		}},
+	};
+	point p_random;
+	bool bIsFirst = true;
+
+	mp_number tmp1, tmp2;
+	point tmp3;
+
+	// Calculate k*G where k = seed.wzyx (in other words, find the point indicated by the private key represented in seed)
+	profanity_init_seed_first(precomp, &p_random, 8 * 255 * 0, seed.x);
+		pPrevLambda[id].d[0] = p_random.x.d[0];
+
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, seed.y);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, seed.z);
+	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, seed.w);
+	point_add(&p, &p, &p_random);
+
+	// Calculate current lambda in this point
+	mp_mod_sub_gx(&tmp1, &p.x);
+	mp_mod_inverse(&tmp1);
+
+	mp_mod_sub_gy(&tmp2, &p.y); 
+	mp_mod_mul(&tmp1, &tmp1, &tmp2);
+
+	// Jump to next point (precomp[0] is the generator point G)
+	tmp3 = precomp[0];
+	point_add(&p, &tmp3, &p);
+
+	// pDeltaX should contain the delta (x - G_x)
+	mp_mod_sub_gx(&p.x, &p.x);
+
+	pDeltaX[id] = p.x;
+}
+
+
+__global__ void profanity_inverse(const mp_number * const pDeltaX, mp_number * const pInverse) {
+    	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+	// negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
+	mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
+
+	mp_number copy1, copy2;
+	mp_number buffer[PROFANITY_INVERSE_SIZE];
+	mp_number buffer2[PROFANITY_INVERSE_SIZE];
+
+	// We initialize buffer and buffer2 such that:
+	// buffer[i] = pDeltaX[id] * pDeltaX[id + 1] * pDeltaX[id + 2] * ... * pDeltaX[id + i]
+	// buffer2[i] = pDeltaX[id + i]
+	buffer[0] = pDeltaX[id];
+	for (int32_t i = 1; i < PROFANITY_INVERSE_SIZE; ++i) {
+		buffer2[i] = pDeltaX[id + i];
+		mp_mod_mul(&buffer[i], &buffer2[i], &buffer[i - 1]);
+	}
+
+	// Take the inverse of all x-values combined
+	copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
+	mp_mod_inverse(&copy1);
+
+	// We multiply in -2G_y together with the inverse so that we have:
+	//            - 2 * G_y
+	//  ----------------------------
+	//  x_0 * x_1 * x_2 * x_3 * ...
+	mp_mod_mul(&copy1, &copy1, &negativeDoubleGy);
+
+	// Multiply out each individual inverse using the buffers
+	for (int32_t i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
+		mp_mod_mul(&copy2, &copy1, &buffer[i - 1]);
+		mp_mod_mul(&copy1, &copy1, &buffer2[i]);
+		pInverse[id + i] = copy2;
+	}
+
+	pInverse[id] = copy1;
+}
+
+__global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const pInverse, mp_number * const pPrevLambda) {
+        const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
+	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
+
+	ethhash h = { { 0 } };
+
+	mp_number dX = pDeltaX[id];
+	mp_number tmp = pInverse[id];
+	mp_number lambda = pPrevLambda[id];
+
+	// λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
+	mp_mod_sub(&lambda, &tmp, &lambda);
+
+	// λ² = λ * λ <=> tmp := lambda * lambda = λ²
+	mp_mod_mul(&tmp, &lambda, &lambda);
+
+	// d' = λ² - d - 3g = (-3g) - (d - λ²) <=> x := tripleNegativeGx - (x - tmp)
+	mp_mod_sub(&dX, &dX, &tmp);
+	mp_mod_sub_const(&dX, &tripleNegativeGx, &dX);
+
+	pDeltaX[id] = dX;
+	//pPrevLambda[id] = lambda;
+
+	// Calculate y from dX and lambda
+	// y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
+	mp_mod_mul(&tmp, &lambda, &dX);
+	mp_mod_sub_const(&tmp, &negativeGy, &tmp);
+
+	// Restore X coordinate from delta value
+	mp_mod_sub(&dX, &dX, &negativeGx);
+
+	// Initialize Keccak structure with point coordinates in big endian
+	h.d[0] = bswap32(dX.d[MP_WORDS - 1]);
+	h.d[1] = bswap32(dX.d[MP_WORDS - 2]);
+	h.d[2] = bswap32(dX.d[MP_WORDS - 3]);
+	h.d[3] = bswap32(dX.d[MP_WORDS - 4]);
+	h.d[4] = bswap32(dX.d[MP_WORDS - 5]);
+	h.d[5] = bswap32(dX.d[MP_WORDS - 6]);
+	h.d[6] = bswap32(dX.d[MP_WORDS - 7]);
+	h.d[7] = bswap32(dX.d[MP_WORDS - 8]);
+	h.d[8] = bswap32(tmp.d[MP_WORDS - 1]);
+	h.d[9] = bswap32(tmp.d[MP_WORDS - 2]);
+	h.d[10] = bswap32(tmp.d[MP_WORDS - 3]);
+	h.d[11] = bswap32(tmp.d[MP_WORDS - 4]);
+	h.d[12] = bswap32(tmp.d[MP_WORDS - 5]);
+	h.d[13] = bswap32(tmp.d[MP_WORDS - 6]);
+	h.d[14] = bswap32(tmp.d[MP_WORDS - 7]);
+	h.d[15] = bswap32(tmp.d[MP_WORDS - 8]);
+	h.d[16] ^= 0x01; // length 64
+
+	sha3_keccakf(&h);
+
+	// Save public address hash in pInverse, only used as interim storage until next cycle
+	/*pInverse[id].d[0] = h.d[3];
+	pInverse[id].d[1] = h.d[4];
+	pInverse[id].d[2] = h.d[5];
+	pInverse[id].d[3] = h.d[6];
+	pInverse[id].d[4] = h.d[7];*/
+	pInverse[id].d[0] = pPrevLambda[id].d[0];
+	pInverse[id].d[1] = 0;
+	pInverse[id].d[2] = 0;
+	pInverse[id].d[3] = 0;
+	pInverse[id].d[4] = 0;
+}
+
+
+
+
+__global__ void profanity_score(mp_number * const pInverse, search_result* const results) {
+    const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+    if (id==0) {
+        mp_number inv = pInverse[id];
+        int score = 0;
+
+        results[id].id = id;
+        results[id].round = 1;
+
+        for (int i = 0; i < 20; i++) {
+            results[id].addr[i] = inv.b[i];
+        }
+    }
+}
+
+
+void run_kernel_private_search(private_search_data * data) {
+//__global__ void profanity_init(const point * const precomp, mp_number * const pDeltaX, mp_number * const pPrevLambda, result * const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
+
+    profanity_init<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(
+        data->device_precomp,
+        data->device_deltaX,
+        data->device_prev_lambda,
+        data->seed,
+        data->public_key_x,
+        data->public_key_y);
+
+
+    profanity_inverse<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse);
+    profanity_iterate<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse,
+        data->device_prev_lambda);
+    profanity_score<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(data->device_pInverse, data->device_result);
+
+
+//    private_search<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+}
+
