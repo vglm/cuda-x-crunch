@@ -55,13 +55,18 @@ void run_kernel_create3_search(create3_search_data * data);
 // private key search
 
 struct private_search_data {
-    mp_number public_key_x;
-    mp_number public_key_y;
+    cl_ulong4 public_key_x;
+    cl_ulong4 public_key_y;
+    cl_ulong4 seed;
     int rounds;
     int kernel_group_size;
     int kernel_groups;
     search_result * device_result;
     search_result * host_result;
+    mp_number * device_pInverse;
+    mp_number * device_deltaX;
+    mp_number * device_prev_lambda;
+    point * device_precomp;
     uint64_t total_compute;
     double time_started;
 };

@@ -6,7 +6,7 @@
 #include <string>
 #include <filesystem>
 #include <cstring>
-
+#include "precomp.hpp"
 
 
 void private_data_init(private_search_data *init_data)
@@ -16,7 +16,14 @@ void private_data_init(private_search_data *init_data)
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
     cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count);
+    cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count);
+    cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count);
+    cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count);
+    cudaMalloc((void **)&init_data->device_precomp, sizeof(point) * 8160);
+    cudaMemcpy(init_data->device_precomp, g_precomp, sizeof(point) * 8160, cudaMemcpyHostToDevice);
+
     init_data->host_result = new search_result[data_count]();
+
     memset(init_data->host_result, 0, sizeof(search_result) * data_count);
     CHECK_CUDA_ERROR("Allocate memory on CUDA");
 }
@@ -25,6 +32,10 @@ void private_data_destroy(private_search_data *init_data)
 {
     delete[] init_data->host_result;
     cudaFree(init_data->device_result);
+    cudaFree(init_data->device_pInverse);
+    cudaFree(init_data->device_prev_lambda);
+    cudaFree(init_data->device_deltaX);
+    cudaFree(init_data->device_precomp);
 }
 
 void private_data_search(private_search_data *init_data)
@@ -52,7 +63,7 @@ void private_data_search(private_search_data *init_data)
     cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
-    update_public_key(init_data->public_key_x, init_data->public_key_y);
+    update_public_key(init_data->public_key_x.mpn, init_data->public_key_y.mpn);
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
         if (f[n].round != 0) {
