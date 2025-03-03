@@ -488,25 +488,37 @@ void update_public_key(const mp_number &x, const mp_number &y)
     cudaMemcpyToSymbol(g_publicKeyY, &y, sizeof(mp_number));
 }
 
-__device__ void profanity_init_seed(const point * const precomp, point * const p, bool * const pIsFirst, const size_t precompOffset, const uint32_t seed) {
+__device__ void profanity_init_seed_first(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
 	point o;
-
-	for (uint8_t i = 0; i < 8; ++i) {
-		const uint8_t shift = i * 8;
-		const uint8_t byte = (seed >> shift) & 0xFF;
+    bool bIsFirst = true;
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
 
 		if (byte) {
 			o = precomp[precompOffset + i * 255 + byte - 1];
-			if (*pIsFirst) {
-				*p = o;
-				*pIsFirst = false;
-			}
-			else {
-				point_add(p, p, &o);
-			}
+            if (bIsFirst) {
+                *p = o;
+                bIsFirst = false;
+            } else {
+                point_add(p, p, &o);
+            }
 		}
 	}
 }
+
+__device__ void profanity_init_seed(const point * const precomp, point * const p, const uint32_t precompOffset, const uint64_t seed) {
+	point o;
+
+	for (uint32_t i = 0; i < 8; ++i) {
+		const uint32_t byte = (seed >> (i * 8)) & 0xFF;
+
+		if (byte) {
+			o = precomp[precompOffset + i * 255 + byte - 1];
+            point_add(p, p, &o);
+		}
+	}
+}
+
 typedef struct {
 	uint32_t found;
 	uint32_t foundId;
@@ -533,16 +545,15 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 		}},
 	};
 	point p_random;
-	bool bIsFirst = true;
 
 	mp_number tmp1, tmp2;
 	point tmp3;
 
 	// Calculate k*G where k = seed.wzyx (in other words, find the point indicated by the private key represented in seed)
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 0, 1);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 1, 1);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 2, 1);
-	profanity_init_seed(precomp, &p_random, &bIsFirst, 8 * 255 * 3, 1);
+	profanity_init_seed_first(precomp, &p_random, 8 * 255 * 0, 1);
+	profanity_init_seed(precomp, &p_random, 8 * 255 * 1, 1);
+	profanity_init_seed(precomp, &p_random, 8 * 255 * 2, 1);
+	profanity_init_seed(precomp, &p_random, 8 * 255 * 3, 1);
 	point_add(&p, &p, &p_random);
 
 	// Calculate current lambda in this point
