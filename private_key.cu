@@ -574,7 +574,49 @@ __global__ void profanity_init(const point * const precomp, mp_number * const pD
 	pPrevLambda[id] = tmp1;
 }
 
-__device__ void profanity_iterate(const size_t id, mp_number * const pDeltaX, mp_number * const pInverse, mp_number * const pPrevLambda) {
+
+__global__ void profanity_inverse(const mp_number * const pDeltaX, mp_number * const pInverse) {
+    	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+	// negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
+	mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
+
+	mp_number copy1, copy2;
+	mp_number buffer[PROFANITY_INVERSE_SIZE];
+	mp_number buffer2[PROFANITY_INVERSE_SIZE];
+
+	// We initialize buffer and buffer2 such that:
+	// buffer[i] = pDeltaX[id] * pDeltaX[id + 1] * pDeltaX[id + 2] * ... * pDeltaX[id + i]
+	// buffer2[i] = pDeltaX[id + i]
+	buffer[0] = pDeltaX[id];
+	for (int32_t i = 1; i < PROFANITY_INVERSE_SIZE; ++i) {
+		buffer2[i] = pDeltaX[id + i];
+		mp_mod_mul(&buffer[i], &buffer2[i], &buffer[i - 1]);
+	}
+
+	// Take the inverse of all x-values combined
+	copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
+	mp_mod_inverse(&copy1);
+
+	// We multiply in -2G_y together with the inverse so that we have:
+	//            - 2 * G_y
+	//  ----------------------------
+	//  x_0 * x_1 * x_2 * x_3 * ...
+	mp_mod_mul(&copy1, &copy1, &negativeDoubleGy);
+
+	// Multiply out each individual inverse using the buffers
+	for (int32_t i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
+		mp_mod_mul(&copy2, &copy1, &buffer[i - 1]);
+		mp_mod_mul(&copy1, &copy1, &buffer2[i]);
+		pInverse[id + i] = copy2;
+	}
+
+	pInverse[id] = copy1;
+}
+
+__global__ void profanity_iterate(mp_number * const pDeltaX, mp_number * const pInverse, mp_number * const pPrevLambda) {
+    	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
 	// negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
 	mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
 
@@ -634,7 +676,21 @@ __device__ void profanity_iterate(const size_t id, mp_number * const pDeltaX, mp
 	pInverse[id].d[4] = h.d[7];
 }
 
+__global__ void profanity_score(mp_number * const pInverse, search_result* const results) {
+    const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
+    if (id==0) {
+        mp_number inv = pInverse[id];
+        int score = 0;
+
+        results[id].id = id;
+        results[id].round = 1;
+
+        for (int i = 0; i < 20; i++) {
+            results[id].addr[i] = inv.b[i];
+        }
+    }
+}
 
 
 __global__ void private_search(search_result* const results, int rounds)
@@ -657,7 +713,7 @@ __global__ void private_search(search_result* const results, int rounds)
 void run_kernel_private_search(private_search_data * data) {
 //__global__ void profanity_init(const point * const precomp, mp_number * const pDeltaX, mp_number * const pPrevLambda, result * const pResult, const ulong4 seed, const ulong4 seedX, const ulong4 seedY) {
 
-    profanity_init<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
+    profanity_init<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(
         data->device_precomp,
         data->device_deltaX,
         data->device_prev_lambda,
@@ -666,6 +722,16 @@ void run_kernel_private_search(private_search_data * data) {
         data->public_key_y);
 
 
-    private_search<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+    profanity_inverse<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse);
+    profanity_iterate<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(
+        data->device_deltaX,
+        data->device_pInverse,
+        data->device_prev_lambda);
+    profanity_score<<<(int)(data->kernel_groups * PROFANITY_INVERSE_SIZE), data->kernel_group_size>>>(data->device_pInverse, data->device_result);
+
+
+//    private_search<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
 }
 

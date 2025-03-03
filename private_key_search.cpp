@@ -8,23 +8,35 @@
 #include <cstring>
 #include "precomp.hpp"
 
+cl_ulong4 createRandomSeed() {
+	// We do not need really safe crypto random here, since we inherit safety
+	// of the key from the user-provided seed public key.
+	// We only need this random to not repeat same job among different devices
 
+
+	cl_ulong4 diff;
+	diff.s[0] = 0x8808c1b551e9abcd;
+	diff.s[1] = 0x7d827dd96f53c462;
+	diff.s[2] = 0x3264827a5ad35704;
+	diff.s[3] = 0x0000750bba63a355;
+	return diff;
+}
 void private_data_init(private_search_data *init_data)
 {
     init_data->total_compute = 0;
     init_data->time_started = get_app_time_sec();
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
-    cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count);
-    cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count);
-    cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count);
-    cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count);
+    cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
     cudaMalloc((void **)&init_data->device_precomp, sizeof(point) * 8160);
     cudaMemcpy(init_data->device_precomp, g_precomp, sizeof(point) * 8160, cudaMemcpyHostToDevice);
 
-    init_data->host_result = new search_result[data_count]();
+    init_data->host_result = new search_result[data_count * PROFANITY_INVERSE_SIZE]();
 
-    memset(init_data->host_result, 0, sizeof(search_result) * data_count);
+    memset(init_data->host_result, 0, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
     CHECK_CUDA_ERROR("Allocate memory on CUDA");
 }
 
@@ -37,7 +49,44 @@ void private_data_destroy(private_search_data *init_data)
     cudaFree(init_data->device_deltaX);
     cudaFree(init_data->device_precomp);
 }
+static std::string toHex(const uint8_t * const s, const size_t len) {
+	std::string b("0123456789abcdef");
+	std::string r;
 
+	for (size_t i = 0; i < len; ++i) {
+		const unsigned char h = s[i] / 16;
+		const unsigned char l = s[i] % 16;
+
+		r = r + b.substr(h, 1) + b.substr(l, 1);
+	}
+
+	return r;
+}
+static void printResult(cl_ulong4 seed, uint64_t round, search_result r) {
+
+	// Format private key
+	uint64_t carry = 0;
+	cl_ulong4 seedRes;
+
+	seedRes.s[0] = seed.s[0] + round; carry = seedRes.s[0] < round;
+	seedRes.s[1] = seed.s[1] + carry; carry = !seedRes.s[1];
+	seedRes.s[2] = seed.s[2] + carry; carry = !seedRes.s[2];
+	seedRes.s[3] = seed.s[3] + carry + r.id;
+
+	std::ostringstream ss;
+	ss << std::hex << std::setfill('0');
+	ss << std::setw(16) << seedRes.s[3] << std::setw(16) << seedRes.s[2] << std::setw(16) << seedRes.s[1] << std::setw(16) << seedRes.s[0];
+	const std::string strPrivate = ss.str();
+
+	// Format public key
+	const std::string strPublic = toHex(r.addr, 20);
+
+	// Print
+
+	std::cout << " Private: 0x" << strPrivate << ' ';
+
+	std::cout << ": 0x" << strPublic << std::endl;
+}
 void private_data_search(private_search_data *init_data)
 {
     double start = get_app_time_sec();
@@ -45,10 +94,10 @@ void private_data_search(private_search_data *init_data)
     const int kernel_group_size = init_data->kernel_group_size;
     const uint64_t data_count = init_data->kernel_groups * kernel_group_size;
 
-    salt randomSalt = generate_random_salt();
-    update_device_salt(&randomSalt);
+    cl_ulong4 randomSalt = createRandomSeed();
     CHECK_CUDA_ERROR("Failed to load salt data");
 
+    init_data->seed = randomSalt;
     cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count);
 
     LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
@@ -67,9 +116,10 @@ void private_data_search(private_search_data *init_data)
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
         if (f[n].round != 0) {
-            salt newSalt;
-            newSalt.q[0] = randomSalt.q[0];
-            newSalt.q[1] = randomSalt.q[1];
+            printResult(init_data->seed, 2, f[n]);
+            //salt newSalt;
+            //newSalt.q[0] = randomSalt.q[0];
+            /*newSalt.q[1] = randomSalt.q[1];
             newSalt.q[2] = randomSalt.q[2];
             newSalt.q[3] = randomSalt.q[3];
             newSalt.d[0] = f[n].id;
@@ -82,7 +132,8 @@ void private_data_search(private_search_data *init_data)
             }
             salt[64] = 0;
             printf("0x%s,%s,%s_%lld\n", salt, hexAddr.c_str(), "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
-
+*/
+//printResult(init_data->seed, 1, *f)
 //            std::string outputDir = init_data->outputDir;
   //          if (outputDir == "") {
                 continue;

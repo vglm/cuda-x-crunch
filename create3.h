@@ -54,6 +54,8 @@ void run_kernel_create3_search(create3_search_data * data);
 
 // private key search
 
+#define PROFANITY_INVERSE_SIZE 255
+
 struct private_search_data {
     cl_ulong4 public_key_x;
     cl_ulong4 public_key_y;
