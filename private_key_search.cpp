@@ -98,7 +98,7 @@ void private_data_search(private_search_data *init_data)
     CHECK_CUDA_ERROR("Failed to load salt data");
 
     init_data->seed = randomSalt;
-    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count);
+    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
 
     LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
 
@@ -108,13 +108,13 @@ void private_data_search(private_search_data *init_data)
 
     LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
-    cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
+    cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result) * PROFANITY_INVERSE_SIZE, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
     update_public_key(init_data->public_key_x.mpn, init_data->public_key_y.mpn);
     char hexAddr[43] = { 0 };
-    for (int n = 0; n < data_count; n++) {
+    for (int n = 0; n < data_count * PROFANITY_INVERSE_SIZE; n++) {
         if (f[n].round != 0) {
             printResult(init_data->seed, 2, f[n]);
             //salt newSalt;
