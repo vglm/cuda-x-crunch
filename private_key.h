@@ -4,7 +4,7 @@
 #include <string>
 // private key search
 
-#define PROFANITY_INVERSE_SIZE 20
+#define PROFANITY_INVERSE_SIZE 100
 #define RESULTS_ARRAY_SIZE 1024
 
 struct private_search_data {
@@ -17,7 +17,7 @@ struct private_search_data {
     search_result * device_result;
     search_result * host_result;
     //mp_number * device_pInverse;
-    //mp_number * device_deltaX;
+    mp_number * device_deltaX;
     //mp_number * device_prev_lambda;
     point * device_precomp;
     uint64_t total_compute;

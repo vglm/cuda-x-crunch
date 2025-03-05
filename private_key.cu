@@ -531,9 +531,12 @@ typedef struct {
 #define PROFANITY_MAX_SCORE 40
 
 
+//#define USE_PREV_LAMBDA_GLOBAL
+
 __global__ void profanity_init_inverse_and_iterate(
     const point * const precomp,
     search_result* const results,
+    mp_number* pPrevLambdaCache,
     uint32_t rounds,
     const cl_ulong4 seed,
     const cl_ulong4 seedX,
@@ -541,8 +544,9 @@ __global__ void profanity_init_inverse_and_iterate(
 {
     mp_number pDeltaX[PROFANITY_INVERSE_SIZE];
     mp_number pInverse[PROFANITY_INVERSE_SIZE];
+#ifndef USE_PREV_LAMBDA_GLOBAL
     mp_number pPrevLambda[PROFANITY_INVERSE_SIZE];
-
+#endif
     size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
     size_t orig_id = id;
 
@@ -590,7 +594,11 @@ __global__ void profanity_init_inverse_and_iterate(
         mp_mod_sub_gx(p.x, p.x);
 
         pDeltaX[i] = p.x;
+#ifdef USE_PREV_LAMBDA_GLOBAL
+        pPrevLambdaCache[id] = tmp1;
+#else
         pPrevLambda[i] = tmp1;
+#endif
     }
 
     //algorithm is tuned so first round is 2
@@ -616,6 +624,7 @@ __global__ void profanity_init_inverse_and_iterate(
         // Take the inverse of all x-values combined
         copy1 = buffer[PROFANITY_INVERSE_SIZE - 1];
         mp_mod_inverse(copy1);
+        __syncthreads();
 
         // We multiply in -2G_y together with the inverse so that we have:
         //            - 2 * G_y
@@ -642,8 +651,11 @@ __global__ void profanity_init_inverse_and_iterate(
 
             mp_number dX = pDeltaX[i];
             mp_number tmp = pInverse[i];
+#ifdef USE_PREV_LAMBDA_GLOBAL
+            mp_number lambda = pPrevLambdaCache[id];
+#else
             mp_number lambda = pPrevLambda[i];
-
+#endif
             // λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
             mp_mod_sub(lambda, tmp, lambda);
 
@@ -655,7 +667,11 @@ __global__ void profanity_init_inverse_and_iterate(
             mp_mod_sub_const(dX, tripleNegativeGx, dX);
 
             pDeltaX[i] = dX;
+#ifdef USE_PREV_LAMBDA_GLOBAL
+            pPrevLambdaCache[id] = lambda;
+#else
             pPrevLambda[i] = lambda;
+#endif
 
             // Calculate y from dX and lambda
             // y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
@@ -690,9 +706,9 @@ __global__ void profanity_init_inverse_and_iterate(
             mp_number* inv = (mp_number*)&h.d[3];
 
 
-            if (inv->d[0] == 0xbb500000) {
-                results[id].id = id;
-                results[id].round = round;
+            if (inv->d[0] < 10) {
+                results[id % RESULTS_ARRAY_SIZE].id = id;
+                results[id % RESULTS_ARRAY_SIZE].round = round;
 
                 for (int i = 0; i < 20; i++) {
                     results[id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
@@ -727,6 +743,7 @@ void run_kernel_private_search(private_search_data * data) {
     profanity_init_inverse_and_iterate<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
         data->device_precomp,
         data->device_result,
+        data->device_deltaX,
         number_of_rounds,
         data->seed,
         data->public_key_x,

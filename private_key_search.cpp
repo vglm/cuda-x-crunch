@@ -30,7 +30,7 @@ void private_data_init(private_search_data *init_data)
     cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * RESULTS_ARRAY_SIZE);
     //cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
     //cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
-    //cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
     cudaMalloc((void **)&init_data->device_precomp, sizeof(point) * 8160);
     cudaMemcpy(init_data->device_precomp, g_precomp, sizeof(point) * 8160, cudaMemcpyHostToDevice);
 
@@ -46,7 +46,7 @@ void private_data_destroy(private_search_data *init_data)
     cudaFree(init_data->device_result);
     //cudaFree(init_data->device_pInverse);
     //cudaFree(init_data->device_prev_lambda);
-    //cudaFree(init_data->device_deltaX);
+    cudaFree(init_data->device_deltaX);
     cudaFree(init_data->device_precomp);
 }
 static std::string toHex(const uint8_t * const s, const size_t len) {
