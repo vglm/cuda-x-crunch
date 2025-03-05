@@ -12,6 +12,7 @@ add_executable(profanity_cuda
   profanity.cu
   ArgParser.hpp
   private_key.cu
+  private_key.h
   private_key_search.cpp
   create3.cu
   create3search.cpp

@@ -1,4 +1,4 @@
-#include "create3.h"
+#include "private_key.h"
 #include "utils.hpp"
 #include "Logger.hpp"
 #include <iostream>
@@ -15,10 +15,10 @@ cl_ulong4 createRandomSeed() {
 
 
 	cl_ulong4 diff;
-	diff.s[0] = 0x8808c1b551e9abcd;
-	diff.s[1] = 0x7d827dd96f53c462;
-	diff.s[2] = 0x3264827a5ad35704;
-	diff.s[3] = 0x0000750bba63a355;
+	diff.s[0] = get_next_random();
+	diff.s[1] = get_next_random();
+	diff.s[2] = get_next_random();
+	diff.s[3] = 0x0;
 	return diff;
 }
 void private_data_init(private_search_data *init_data)
@@ -114,7 +114,7 @@ void private_data_search(std::string public_key, private_search_data *init_data)
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count * PROFANITY_INVERSE_SIZE; n++) {
         if (f[n].round != 0) {
-            printResult(public_key, init_data->seed, 2, f[n]);
+            printResult(public_key, init_data->seed, f[n].round, f[n]);
             //salt newSalt;
             //newSalt.q[0] = randomSalt.q[0];
             /*newSalt.q[1] = randomSalt.q[1];

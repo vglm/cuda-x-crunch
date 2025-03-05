@@ -25,6 +25,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "create3.h"
+#include "private_key.h"
 #include "help.hpp"
 #include "utils.hpp"
 #include "ArgParser.hpp"
