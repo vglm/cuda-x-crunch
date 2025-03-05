@@ -1,6 +1,7 @@
 #pragma once
 
 #include "types.hpp"
+#include <string>
 
 #include <cstdint>
 
@@ -54,7 +55,7 @@ void run_kernel_create3_search(create3_search_data * data);
 
 // private key search
 
-#define PROFANITY_INVERSE_SIZE 255
+#define PROFANITY_INVERSE_SIZE 10
 
 struct private_search_data {
     cl_ulong4 public_key_x;
@@ -76,7 +77,7 @@ struct private_search_data {
 
 void update_public_key(mp_number const& x, mp_number const& y);
 void private_data_init(private_search_data *init_data);
-void private_data_search(private_search_data *init_data);
+void private_data_search(std::string public_key, private_search_data *init_data);
 void private_data_destroy(private_search_data *init_data);
 void run_kernel_private_search(private_search_data * data);
 

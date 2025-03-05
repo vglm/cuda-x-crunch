@@ -62,7 +62,7 @@ static std::string toHex(const uint8_t * const s, const size_t len) {
 
 	return r;
 }
-static void printResult(cl_ulong4 seed, uint64_t round, search_result r) {
+static void printResult(std::string public_key, cl_ulong4 seed, uint64_t round, search_result r) {
 
 	// Format private key
 	uint64_t carry = 0;
@@ -83,11 +83,9 @@ static void printResult(cl_ulong4 seed, uint64_t round, search_result r) {
 
 	// Print
 
-	std::cout << " Private: 0x" << strPrivate << ' ';
-
-	std::cout << ": 0x" << strPublic << std::endl;
+	std::cout << "target\\release\\addresser.exe" << " compute-address --public-key-base " << public_key << " --private-key-add " << strPrivate << " -e " << strPublic << std::endl;
 }
-void private_data_search(private_search_data *init_data)
+void private_data_search(std::string public_key, private_search_data *init_data)
 {
     double start = get_app_time_sec();
 
@@ -98,7 +96,7 @@ void private_data_search(private_search_data *init_data)
     CHECK_CUDA_ERROR("Failed to load salt data");
 
     init_data->seed = randomSalt;
-    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count);
+    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
 
     LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
 
@@ -108,15 +106,15 @@ void private_data_search(private_search_data *init_data)
 
     LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
-    cudaMemcpy(f, init_data->device_result, data_count * sizeof(search_result), cudaMemcpyDeviceToHost);
+    cudaMemcpy(f, init_data->device_result, data_count * PROFANITY_INVERSE_SIZE * sizeof(search_result), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
     update_public_key(init_data->public_key_x.mpn, init_data->public_key_y.mpn);
     char hexAddr[43] = { 0 };
-    for (int n = 0; n < data_count; n++) {
+    for (int n = 0; n < data_count * PROFANITY_INVERSE_SIZE; n++) {
         if (f[n].round != 0) {
-            printResult(init_data->seed, 2, f[n]);
+            printResult(public_key, init_data->seed, 2, f[n]);
             //salt newSalt;
             //newSalt.q[0] = randomSalt.q[0];
             /*newSalt.q[1] = randomSalt.q[1];

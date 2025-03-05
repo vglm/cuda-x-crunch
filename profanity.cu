@@ -303,7 +303,7 @@ int main(int argc, char ** argv)
             if (g_exiting) {
                 break;
             }
-            private_data_search(&init_data);
+            private_data_search(publicKey, &init_data);
             double end = get_app_time_sec();
             if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
                 || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
