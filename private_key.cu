@@ -533,15 +533,16 @@ typedef struct {
 
 __global__ void profanity_init_inverse_and_iterate(
     const point * const precomp,
-    mp_number * const pDeltaX,
-    mp_number * const pInverse,
-    mp_number * const pPrevLambda,
     search_result* const results,
     uint32_t rounds,
     const cl_ulong4 seed,
     const cl_ulong4 seedX,
     const cl_ulong4 seedY)
 {
+    mp_number pDeltaX[PROFANITY_INVERSE_SIZE];
+    mp_number pInverse[PROFANITY_INVERSE_SIZE];
+    mp_number pPrevLambda[PROFANITY_INVERSE_SIZE];
+
     size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
     size_t orig_id = id;
 
@@ -588,8 +589,8 @@ __global__ void profanity_init_inverse_and_iterate(
         // pDeltaX should contain the delta (x - G_x)
         mp_mod_sub_gx(p.x, p.x);
 
-        pDeltaX[id] = p.x;
-        pPrevLambda[id] = tmp1;
+        pDeltaX[i] = p.x;
+        pPrevLambda[i] = tmp1;
     }
 
     //algorithm is tuned so first round is 2
@@ -606,9 +607,9 @@ __global__ void profanity_init_inverse_and_iterate(
         // We initialize buffer and buffer2 such that:
         // buffer[i] = pDeltaX[id] * pDeltaX[id + 1] * pDeltaX[id + 2] * ... * pDeltaX[id + i]
         // buffer2[i] = pDeltaX[id + i]
-        buffer[0] = pDeltaX[id];
+        buffer[0] = pDeltaX[0];
         for (int32_t i = 1; i < PROFANITY_INVERSE_SIZE; ++i) {
-            buffer2[i] = pDeltaX[id + i];
+            buffer2[i] = pDeltaX[i];
             mp_mod_mul(buffer[i], buffer2[i], buffer[i - 1]);
         }
 
@@ -626,10 +627,10 @@ __global__ void profanity_init_inverse_and_iterate(
         for (int32_t i = PROFANITY_INVERSE_SIZE - 1; i > 0; --i) {
             mp_mod_mul(copy2, copy1, buffer[i - 1]);
             mp_mod_mul(copy1, copy1, buffer2[i]);
-            pInverse[id + i] = copy2;
+            pInverse[i] = copy2;
         }
 
-        pInverse[id] = copy1;
+        pInverse[0] = copy1;
 
 
         for (int i = 0; i < PROFANITY_INVERSE_SIZE; i += 1) {
@@ -639,9 +640,9 @@ __global__ void profanity_init_inverse_and_iterate(
 
             ethhash h = { { 0 } };
 
-            mp_number dX = pDeltaX[id];
-            mp_number tmp = pInverse[id];
-            mp_number lambda = pPrevLambda[id];
+            mp_number dX = pDeltaX[i];
+            mp_number tmp = pInverse[i];
+            mp_number lambda = pPrevLambda[i];
 
             // λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
             mp_mod_sub(lambda, tmp, lambda);
@@ -653,8 +654,8 @@ __global__ void profanity_init_inverse_and_iterate(
             mp_mod_sub(dX, dX, tmp);
             mp_mod_sub_const(dX, tripleNegativeGx, dX);
 
-            pDeltaX[id] = dX;
-            pPrevLambda[id] = lambda;
+            pDeltaX[i] = dX;
+            pPrevLambda[i] = lambda;
 
             // Calculate y from dX and lambda
             // y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
@@ -694,7 +695,7 @@ __global__ void profanity_init_inverse_and_iterate(
                 results[id].round = round;
 
                 for (int i = 0; i < 20; i++) {
-                    results[id].addr[i] = inv->b[i];
+                    results[id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
                 }
             }
 
@@ -725,9 +726,6 @@ void run_kernel_private_search(private_search_data * data) {
     int number_of_rounds = data->rounds;
     profanity_init_inverse_and_iterate<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
         data->device_precomp,
-        data->device_deltaX,
-        data->device_pInverse,
-        data->device_prev_lambda,
         data->device_result,
         number_of_rounds,
         data->seed,

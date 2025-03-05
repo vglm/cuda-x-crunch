@@ -27,10 +27,10 @@ void private_data_init(private_search_data *init_data)
     init_data->time_started = get_app_time_sec();
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
-    cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
-    cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
-    cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
-    cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * RESULTS_ARRAY_SIZE);
+    //cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    //cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    //cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
     cudaMalloc((void **)&init_data->device_precomp, sizeof(point) * 8160);
     cudaMemcpy(init_data->device_precomp, g_precomp, sizeof(point) * 8160, cudaMemcpyHostToDevice);
 
@@ -44,9 +44,9 @@ void private_data_destroy(private_search_data *init_data)
 {
     delete[] init_data->host_result;
     cudaFree(init_data->device_result);
-    cudaFree(init_data->device_pInverse);
-    cudaFree(init_data->device_prev_lambda);
-    cudaFree(init_data->device_deltaX);
+    //cudaFree(init_data->device_pInverse);
+    //cudaFree(init_data->device_prev_lambda);
+    //cudaFree(init_data->device_deltaX);
     cudaFree(init_data->device_precomp);
 }
 static std::string toHex(const uint8_t * const s, const size_t len) {
@@ -96,9 +96,10 @@ void private_data_search(std::string public_key, private_search_data *init_data)
     CHECK_CUDA_ERROR("Failed to load salt data");
 
     init_data->seed = randomSalt;
-    cudaMemset(init_data->device_result, 0, sizeof(search_result) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMemset(init_data->device_result, 0, sizeof(search_result) * RESULTS_ARRAY_SIZE);
 
     LOG_DEBUG("Copying data to device %d MB...", (uint32_t)(sizeof(search_result) * data_count / 1024 / 1024));
+    update_public_key(init_data->public_key_x.mpn, init_data->public_key_y.mpn);
 
     LOG_DEBUG("Running keccak kernel...");
     run_kernel_private_search(init_data);
@@ -106,13 +107,14 @@ void private_data_search(std::string public_key, private_search_data *init_data)
 
     LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
-    cudaMemcpy(f, init_data->device_result, data_count * PROFANITY_INVERSE_SIZE * sizeof(search_result), cudaMemcpyDeviceToHost);
+    cudaMemcpy(f, init_data->device_result, RESULTS_ARRAY_SIZE * sizeof(search_result), cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
-    update_public_key(init_data->public_key_x.mpn, init_data->public_key_y.mpn);
+    double end = get_app_time_sec();
+
     char hexAddr[43] = { 0 };
-    for (int n = 0; n < data_count * PROFANITY_INVERSE_SIZE; n++) {
+    for (int n = 0; n < RESULTS_ARRAY_SIZE; n++) {
         if (f[n].round != 0) {
             printResult(public_key, init_data->seed, f[n].round, f[n]);
             //salt newSalt;
@@ -158,12 +160,10 @@ void private_data_search(std::string public_key, private_search_data *init_data)
         }
     }
 
-    double end = get_app_time_sec();
 
-
-    init_data->total_compute += init_data->rounds * data_count;
-    LOG_DEBUG("Addresses computed: %lld", init_data->rounds * data_count);
-    LOG_DEBUG("Compute MH: %f MH/s", (double)init_data->rounds * data_count / (end - start) / 1000 / 1000);
+    init_data->total_compute += init_data->rounds * data_count * PROFANITY_INVERSE_SIZE;
+    LOG_DEBUG("Addresses computed: %lld", init_data->total_compute);
+    LOG_DEBUG("Compute MH: %f MH/s", (double)init_data->total_compute / (end - start) / 1000 / 1000);
     LOG_INFO("Total compute %.2f GH - %.2f MH/s", (double)init_data->total_compute / 1000. / 1000. / 1000., (double)init_data->total_compute / (end - init_data->time_started) / 1000 / 1000);
 
 }
