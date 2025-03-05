@@ -531,7 +531,7 @@ typedef struct {
 #define PROFANITY_MAX_SCORE 40
 
 
-//#define USE_PREV_LAMBDA_GLOBAL
+#define USE_PREV_LAMBDA_GLOBAL
 
 __global__ void profanity_init_inverse_and_iterate(
     const point * const precomp,
@@ -547,11 +547,11 @@ __global__ void profanity_init_inverse_and_iterate(
 #ifndef USE_PREV_LAMBDA_GLOBAL
     mp_number pPrevLambda[PROFANITY_INVERSE_SIZE];
 #endif
-    size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
-    size_t orig_id = id;
+    size_t global_id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     for (int i = 0; i < PROFANITY_INVERSE_SIZE; i += 1) {
-        id = orig_id * PROFANITY_INVERSE_SIZE + i;
+        size_t logical_id = global_id * PROFANITY_INVERSE_SIZE + i;
+        size_t cache_id =
 
         point p = {
             .x = {.d = {
@@ -576,7 +576,7 @@ __global__ void profanity_init_inverse_and_iterate(
         profanity_init_seed_first(precomp, p_random, 8 * 255 * 0, seed.x);
         profanity_init_seed(precomp, p_random, 8 * 255 * 1, seed.y);
         profanity_init_seed(precomp, p_random, 8 * 255 * 2, seed.z);
-        profanity_init_seed(precomp, p_random, 8 * 255 * 3, seed.w + id);
+        profanity_init_seed(precomp, p_random, 8 * 255 * 3, seed.w + logical_id);
         point_add(p, p, p_random);
 
         // Calculate current lambda in this point
@@ -595,7 +595,7 @@ __global__ void profanity_init_inverse_and_iterate(
 
         pDeltaX[i] = p.x;
 #ifdef USE_PREV_LAMBDA_GLOBAL
-        pPrevLambdaCache[id] = tmp1;
+        pPrevLambdaCache[logical_id] = tmp1;
 #else
         pPrevLambda[i] = tmp1;
 #endif
@@ -603,8 +603,6 @@ __global__ void profanity_init_inverse_and_iterate(
 
     //algorithm is tuned so first round is 2
     for (int round = 2; round < rounds + 2; round++) {
-        id = orig_id * PROFANITY_INVERSE_SIZE;
-
         // negativeDoubleGy = 0x6f8a4b11b2b8773544b60807e3ddeeae05d0976eb2f557ccc7705edf09de52bf
         mp_number negativeDoubleGy = { {0x09de52bf, 0xc7705edf, 0xb2f557cc, 0x05d0976e, 0xe3ddeeae, 0x44b60807, 0xb2b87735, 0x6f8a4b11 } };
 
@@ -643,7 +641,7 @@ __global__ void profanity_init_inverse_and_iterate(
 
 
         for (int i = 0; i < PROFANITY_INVERSE_SIZE; i += 1) {
-            id = orig_id * PROFANITY_INVERSE_SIZE + i;
+            size_t logical_id = global_id * PROFANITY_INVERSE_SIZE + i;
             // negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
             mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
 
@@ -652,7 +650,7 @@ __global__ void profanity_init_inverse_and_iterate(
             mp_number dX = pDeltaX[i];
             mp_number tmp = pInverse[i];
 #ifdef USE_PREV_LAMBDA_GLOBAL
-            mp_number lambda = pPrevLambdaCache[id];
+            mp_number lambda = pPrevLambdaCache[logical_id];
 #else
             mp_number lambda = pPrevLambda[i];
 #endif
@@ -668,7 +666,7 @@ __global__ void profanity_init_inverse_and_iterate(
 
             pDeltaX[i] = dX;
 #ifdef USE_PREV_LAMBDA_GLOBAL
-            pPrevLambdaCache[id] = lambda;
+            pPrevLambdaCache[logical_id] = lambda;
 #else
             pPrevLambda[i] = lambda;
 #endif
@@ -707,11 +705,11 @@ __global__ void profanity_init_inverse_and_iterate(
 
 
             if (inv->d[0] < 10) {
-                results[id % RESULTS_ARRAY_SIZE].id = id;
-                results[id % RESULTS_ARRAY_SIZE].round = round;
+                results[logical_id % RESULTS_ARRAY_SIZE].id = logical_id;
+                results[logical_id % RESULTS_ARRAY_SIZE].round = round;
 
                 for (int i = 0; i < 20; i++) {
-                    results[id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
+                    results[logical_id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
                 }
             }
 
