@@ -4,8 +4,9 @@
 #include <string>
 // private key search
 
-#define PROFANITY_INVERSE_SIZE 100
-#define RESULTS_ARRAY_SIZE 1024
+//#define USE_PREV_LAMBDA_GLOBAL
+#define PROFANITY_INVERSE_SIZE 255
+#define RESULTS_ARRAY_SIZE 64 * 1024
 
 struct private_search_data {
     cl_ulong4 public_key_x;
@@ -17,8 +18,10 @@ struct private_search_data {
     search_result * device_result;
     search_result * host_result;
     //mp_number * device_pInverse;
+#ifdef USE_PREV_LAMBDA_GLOBAL
     mp_number * device_deltaX;
-    //mp_number * device_prev_lambda;
+    mp_number * device_prev_lambda;
+#endif
     point * device_precomp;
     uint64_t total_compute;
     double time_started;

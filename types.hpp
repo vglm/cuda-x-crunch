@@ -3,11 +3,13 @@
 #include <cctype>
 
 #define MP_WORDS 8
+#define MP_QUADS 4
 #define MP_BITS 32
 
 typedef unsigned int mp_word;
 typedef union {
     mp_word d[MP_WORDS];
+    unsigned long long int q[MP_QUADS];
     unsigned char b[32];
 } mp_number;
 
