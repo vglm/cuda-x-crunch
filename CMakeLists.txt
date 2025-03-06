@@ -24,6 +24,7 @@ add_executable(profanity_cuda
   utils.cpp
   debug_utils.hpp
   debug_utils.cpp
+  scorer.cuh
  )
 
  if(UNIX AND NOT APPLE)

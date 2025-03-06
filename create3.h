@@ -39,10 +39,9 @@ union ethhash {
 };
 
 union ethaddress {
-    uint8_t b[40];
-    uint16_t w[20];
-    uint32_t d[10];
-    uint64_t q[5];
+    uint8_t b[20];
+    uint16_t w[10];
+    uint32_t d[5];
 };
 
 void load_seed_to_device(salt *seed_data);
@@ -58,3 +57,4 @@ void test_create3();
 void update_device_factory(const uint8_t* factory);
 void update_device_salt(const salt* salt);
 void run_kernel_create3_search(create3_search_data * data);
+

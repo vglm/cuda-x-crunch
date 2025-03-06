@@ -1,12 +1,8 @@
 #include "private_key.h"
+#include "scorer.cuh"
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
-#define bswap32(num) (( \
-    ((num>>24)&0xff) | \
-    ((num<<8)&0xff0000) | \
-    ((num>>8)&0xff00) | \
-    ((num<<24)&0xff000000)) \
-)
+#define bswap32 __nv_bswap32
 
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };
@@ -689,14 +685,14 @@ __global__ void profanity_init_inverse_and_iterate(
             sha3_keccakf(h);
 
             // Save public address hash in pInverse, only used as interim storage until next cycle
-            mp_number* inv = (mp_number*)&h.d[3];
+            ethaddress& addr = *(ethaddress*)&h.d[3];
 
-            if (inv->d[0] < 10) {
+            if (scorer(addr)) {
                 results[logical_id % RESULTS_ARRAY_SIZE].id = logical_id;
                 results[logical_id % RESULTS_ARRAY_SIZE].round = round;
 
                 for (int i = 0; i < 20; i++) {
-                    results[logical_id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
+                    results[logical_id % RESULTS_ARRAY_SIZE].addr[i] = addr.b[i];
                 }
             }
         }
@@ -719,8 +715,6 @@ __global__ void profanity_dump_all_results(mp_number * const pInverse, search_re
 
 
 void run_kernel_private_search(private_search_data * data) {
-
-
     int number_of_rounds = data->rounds;
     profanity_init_inverse_and_iterate<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
         data->device_precomp,
