@@ -77,7 +77,7 @@ static void printResult(std::string public_key, cl_ulong4 seed, uint64_t round, 
 	const std::string strPublic = toHex(r.addr, 20);
 
 	// Print
-    printf("0x%s,0x%s,0x%s,%s_%lu\n", public_key.c_str(), strPublic.c_str(), strPrivate.c_str(), g_strVersion.c_str(), (unsigned long)(init_data->total_compute / 1000 / 1000 / 1000));
+    printf("0x%s,0x%s,0x%s,%s_%lu\n", strPrivate.c_str(), strPublic.c_str(), public_key.c_str(), g_strVersion.c_str(), (unsigned long)(init_data->total_compute / 1000 / 1000 / 1000));
 }
 void private_data_search(std::string public_key, private_search_data *init_data)
 {
