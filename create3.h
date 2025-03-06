@@ -22,7 +22,7 @@ struct create3_search_data {
     int kernel_groups;
     search_result * device_result;
     search_result * host_result;
-    uint64_t total_compute;
+    unsigned int int total_compute;
     double time_started;
 };
 
