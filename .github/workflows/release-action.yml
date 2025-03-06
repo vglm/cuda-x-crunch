@@ -21,6 +21,7 @@ jobs:
           use-github-cache: 'false'
           use-local-cache: 'false'
           log-file-suffix: '12.4.1.txt'
+          linux-local-args: '["--toolkit"]'
 
       - name: Run build script
         run: |
@@ -49,6 +50,7 @@ jobs:
           use-github-cache: 'false'
           use-local-cache: 'false'
           log-file-suffix: '12.2.1.txt'
+          linux-local-args: '["--toolkit"]'
 
       - name: Run build script
         run: |
@@ -77,6 +79,7 @@ jobs:
           use-github-cache: 'false'
           use-local-cache: 'false'
           log-file-suffix: '12.8.0.txt'
+          linux-local-args: '["--toolkit"]'
 
       - name: Run build script
         run: |
