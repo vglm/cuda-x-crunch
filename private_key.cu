@@ -658,7 +658,6 @@ __global__ void profanity_init_inverse_and_iterate(
         }
         pInverse[0] = copy1;
 
-
         for (int i = 0; i < PROFANITY_INVERSE_SIZE; i += 1) {
             size_t logical_id = global_id * PROFANITY_INVERSE_SIZE + i;
             // negativeGx = 0x8641998106234453aa5f9d6a3178f4f8fd640324d231d726a60d7ea3e907e497
@@ -737,7 +736,6 @@ mp_number tmp = pInverse[i];
             // Save public address hash in pInverse, only used as interim storage until next cycle
             mp_number* inv = (mp_number*)&h.d[3];
 
-
             if (inv->d[0] < 10) {
                 results[logical_id % RESULTS_ARRAY_SIZE].id = logical_id;
                 results[logical_id % RESULTS_ARRAY_SIZE].round = round;
@@ -746,11 +744,8 @@ mp_number tmp = pInverse[i];
                     results[logical_id % RESULTS_ARRAY_SIZE].addr[i] = inv->b[i];
                 }
             }
-
         }
     }
-
-
 }
 
 __global__ void profanity_dump_all_results(mp_number * const pInverse, search_result* const results, const size_t rounds) {
