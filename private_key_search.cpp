@@ -28,10 +28,10 @@ void private_data_init(private_search_data *init_data)
 
     int data_count = init_data->kernel_group_size * init_data->kernel_groups;
     cudaMalloc((void **)&init_data->device_result, sizeof(search_result) * RESULTS_ARRAY_SIZE);
-    //cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
 #ifdef USE_PREV_LAMBDA_GLOBAL
     cudaMalloc((void **)&init_data->device_prev_lambda, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
     cudaMalloc((void **)&init_data->device_deltaX, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
+    cudaMalloc((void **)&init_data->device_pInverse, sizeof(mp_number) * data_count * PROFANITY_INVERSE_SIZE);
 #endif
     cudaMalloc((void **)&init_data->device_precomp, sizeof(point) * 8160);
     cudaMemcpy(init_data->device_precomp, g_precomp, sizeof(point) * 8160, cudaMemcpyHostToDevice);
@@ -46,8 +46,8 @@ void private_data_destroy(private_search_data *init_data)
 {
     delete[] init_data->host_result;
     cudaFree(init_data->device_result);
-    //cudaFree(init_data->device_pInverse);
 #ifdef USE_PREV_LAMBDA_GLOBAL
+    cudaFree(init_data->device_pInverse);
     cudaFree(init_data->device_prev_lambda);
     cudaFree(init_data->device_deltaX);
 #endif

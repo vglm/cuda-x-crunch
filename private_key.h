@@ -4,7 +4,7 @@
 #include <string>
 // private key search
 
-//#define USE_PREV_LAMBDA_GLOBAL
+#define USE_PREV_LAMBDA_GLOBAL
 #define PROFANITY_INVERSE_SIZE 255
 #define RESULTS_ARRAY_SIZE 64 * 1024
 
@@ -17,8 +17,8 @@ struct private_search_data {
     int kernel_groups;
     search_result * device_result;
     search_result * host_result;
-    //mp_number * device_pInverse;
 #ifdef USE_PREV_LAMBDA_GLOBAL
+    mp_number * device_pInverse;
     mp_number * device_deltaX;
     mp_number * device_prev_lambda;
 #endif
