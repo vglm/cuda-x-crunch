@@ -4,6 +4,10 @@
 #define SCORE_ACCEPTED 1
 #define SCORE_REJECTED 0
 
+__device__ __forceinline__ uint32_t bswap32(uint32_t x) {
+    return __byte_perm(x, 0, 0x0123);  // Reverse byte order
+}
+
 __device__ inline uint32_t scorer(ethaddress& addr)
 {
     uint8_t let_full[40];
@@ -82,11 +86,11 @@ __device__ inline uint32_t scorer(ethaddress& addr)
 
 
 
-    if (number == __nv_bswap32(0xbadbabe0)
-        || number == __nv_bswap32(0xb00bbabe)
-        || number == __nv_bswap32(0xc0ffee00)
-        || number == __nv_bswap32(0xdaedbeef)
-        || number == __nv_bswap32(0x31415926)
+    if (number == bswap32(0xbadbabe0)
+        || number == bswap32(0xb00bbabe)
+        || number == bswap32(0xc0ffee00)
+        || number == bswap32(0xdaedbeef)
+        || number == bswap32(0x31415926)
 
         ) {
         pattern = 1;
