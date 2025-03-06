@@ -535,21 +535,15 @@ typedef struct {
 __global__ void profanity_init_inverse_and_iterate(
     const point * const precomp,
     search_result* const results,
-#ifdef USE_PREV_LAMBDA_GLOBAL
-    uint64_t* pPrevLambdaCache,
-    uint64_t* pDeltaXCache,
-#endif
     uint32_t rounds,
     uint32_t kernelGroupSize,
     const cl_ulong4 seed,
     const cl_ulong4 seedX,
     const cl_ulong4 seedY)
 {
-#ifndef USE_PREV_LAMBDA_GLOBAL
+    mp_number pInverse[PROFANITY_INVERSE_SIZE];
     mp_number pDeltaX[PROFANITY_INVERSE_SIZE];
     mp_number pPrevLambda[PROFANITY_INVERSE_SIZE];
-#endif
-    mp_number pInverse[PROFANITY_INVERSE_SIZE];
     size_t global_id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     for (int i = 0; i < PROFANITY_INVERSE_SIZE; i += 1) {
@@ -595,15 +589,8 @@ __global__ void profanity_init_inverse_and_iterate(
         // pDeltaX should contain the delta (x - G_x)
         mp_mod_sub_gx(p.x, p.x);
 
-#ifdef USE_PREV_LAMBDA_GLOBAL
-        for (int j = 0; j < MP_QUADS; j += 1) {
-            pDeltaXCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id] = p.x.q[j];
-            pPrevLambdaCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id] = tmp1.q[j];
-        }
-#else
         pDeltaX[i] = p.x;
         pPrevLambda[i] = tmp1;
-#endif
     }
 
     //algorithm is tuned so first round is 2
@@ -619,22 +606,11 @@ __global__ void profanity_init_inverse_and_iterate(
         // buffer[i] = pDeltaX[id] * pDeltaX[id + 1] * pDeltaX[id + 2] * ... * pDeltaX[id + i]
         // buffer2[i] = pDeltaX[id + i]
 
-#ifdef USE_PREV_LAMBDA_GLOBAL
-            for (int j = 0; j < MP_QUADS; j += 1) {
-                buffer[0].q[j] = pDeltaXCache[kernelGroupSize * MP_QUADS * 0 + kernelGroupSize * j + global_id];
-            }
-#else
-            buffer[0] = pDeltaX[0];
-#endif
+        buffer[0] = pDeltaX[0];
+
         for (int32_t i = 1; i < PROFANITY_INVERSE_SIZE; ++i) {
 
-#ifdef USE_PREV_LAMBDA_GLOBAL
-            for (int j = 0; j < MP_QUADS; j += 1) {
-                buffer2[i].q[j] = pDeltaXCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id];
-            }
-#else
             buffer2[i] = pDeltaX[i];
-#endif
 
             mp_mod_mul(buffer[i], buffer2[i], buffer[i - 1]);
         }
@@ -664,25 +640,11 @@ __global__ void profanity_init_inverse_and_iterate(
             mp_number negativeGx = { {0xe907e497, 0xa60d7ea3, 0xd231d726, 0xfd640324, 0x3178f4f8, 0xaa5f9d6a, 0x06234453, 0x86419981 } };
 
             ethhash h = { { 0 } };
-#ifdef USE_PREV_LAMBDA_GLOBAL
-            mp_number dX;
-            for (int j = 0; j < MP_QUADS; j += 1) {
-                dX.q[j] = pDeltaXCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id];
-            }
-#else
             mp_number dX = pDeltaX[i];
-#endif
 
-#ifdef USE_PREV_LAMBDA_GLOBAL
-            mp_number lambda;
-
-            for (int j = 0; j < MP_QUADS; j += 1) {
-                lambda.q[j] = pPrevLambdaCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id];
-            };
-#else
             mp_number lambda = pPrevLambda[i];
-#endif
-mp_number tmp = pInverse[i];
+
+            mp_number tmp = pInverse[i];
 
             // λ' = - (2G_y) / d' - λ <=> lambda := pInversedNegativeDoubleGy[id] - pPrevLambda[id]
             mp_mod_sub(lambda, tmp, lambda);
@@ -694,15 +656,8 @@ mp_number tmp = pInverse[i];
             mp_mod_sub(dX, dX, tmp);
             mp_mod_sub_const(dX, tripleNegativeGx, dX);
 
-#ifdef USE_PREV_LAMBDA_GLOBAL
-            for (int j = 0; j < MP_QUADS; j += 1) {
-                pDeltaXCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id] = dX.q[j];
-                pPrevLambdaCache[kernelGroupSize * MP_QUADS * i + kernelGroupSize * j + global_id] = lambda.q[j];
-            }
-#else
             pDeltaX[i] = dX;
             pPrevLambda[i] = lambda;
-#endif
 
             // Calculate y from dX and lambda
             // y' = (-G_Y) - λ * d' <=> p.y := negativeGy - (p.y * p.x)
@@ -770,10 +725,6 @@ void run_kernel_private_search(private_search_data * data) {
     profanity_init_inverse_and_iterate<<<(int)(data->kernel_groups), data->kernel_group_size>>>(
         data->device_precomp,
         data->device_result,
-#ifdef USE_PREV_LAMBDA_GLOBAL
-        (uint64_t*)data->device_prev_lambda,
-        (uint64_t*)data->device_deltaX,
-#endif
         number_of_rounds,
         data->kernel_groups * data->kernel_group_size,
         data->seed,
