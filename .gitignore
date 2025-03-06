@@ -16,3 +16,12 @@
 /*.tcl
 /output/
 /ver.txt
+/build_debug_win_and_run.bat
+/runtime/build-and-test.bat
+/runtime/*.gvmi
+/runtime/*.descr.bin
+/docker/gvmkit-build.exe
+/runtime/profanity_cuda
+/docker/profanity_cuda-12.2.1
+Dockerfile_runtime_slim*
+gvmkit-build.exe

@@ -6,6 +6,7 @@
 std::string string_replace(const std::string & str, const std::string & from, const std::string & to);
 std::string string_to_lower(const std::string & str);
 
+std::string normalize_public_key(const std::string & address);
 std::string normalize_ethereum_address(const std::string & address);
 
 // Convert 20 bytes array to ethereum address like 0x1234567890123456789012345678901234567890

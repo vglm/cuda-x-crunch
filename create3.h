@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.hpp"
+
 #include <cstdint>
 
 struct factory {
@@ -49,4 +51,3 @@ void test_create3();
 void update_device_factory(const uint8_t* factory);
 void update_device_salt(const salt* salt);
 void run_kernel_create3_search(create3_search_data * data);
-

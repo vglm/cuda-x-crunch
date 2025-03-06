@@ -11,8 +11,9 @@ set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)  # Modify according to your GPU
 add_executable(profanity_cuda
   profanity.cu
   ArgParser.hpp
-  keccak.cu
-  keccak.h
+  private_key.cu
+  private_key.h
+  private_key_search.cpp
   create3.cu
   create3search.cpp
   create3.h
