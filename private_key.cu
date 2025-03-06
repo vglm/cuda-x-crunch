@@ -2,7 +2,6 @@
 #include "scorer.cuh"
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
-#define bswap32 __nv_bswap32
 
 __device__ const mp_number tripleNegativeGx = { {0xbb17b196, 0xf2287bec, 0x76958573, 0xf82c096e, 0x946adeea, 0xff1ed83e, 0x1269ccfa, 0x92c4cc83 } };
 __device__ const mp_number negativeGy       = { {0x04ef2777, 0x63b82f6f, 0x597aabe6, 0x02e84bb7, 0xf1eef757, 0xa25b0403, 0xd95c3b9a, 0xb7c52588 } };

@@ -1,3 +1,4 @@
+#include "version.h"
 #include "create3.h"
 #include "utils.hpp"
 #include "Logger.hpp"
@@ -79,7 +80,7 @@ void create3_search(create3_search_data *init_data)
                 sprintf(&salt[(i) * 2], "%02x", newSalt.b[i]);
             }
             salt[64] = 0;
-            printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr.c_str(), init_data->factory, "cuda_miner_v0.1.0", init_data->total_compute / 1000 / 1000 / 1000);
+            printf("0x%s,%s,0x%s,%s_%lld\n", salt, hexAddr.c_str(), init_data->factory, g_strVersion.c_str(), init_data->total_compute / 1000 / 1000 / 1000);
 
             std::string outputDir = init_data->outputDir;
             if (outputDir == "") {

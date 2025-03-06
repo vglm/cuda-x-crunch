@@ -1,2 +1,3 @@
 #pragma once
-const std::string g_strVersion = "0.4.4";
+#include <string>
+const std::string g_strVersion = "0.4.5";

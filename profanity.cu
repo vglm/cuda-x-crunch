@@ -274,12 +274,15 @@ int main(int argc, char ** argv)
     } else {
         LOG_INFO("Searching for private keys for public key: %s", publicKey.c_str());
         //load public key into variables
-
+        if (publicKey.size() != 128) {
+            std::cout << "error: bad public key" << std::endl;
+            return 1;
+        }
         cl_ulong4 clSeedX = fromHexCLUlong(publicKey.substr(0, 64));
         cl_ulong4 clSeedY = fromHexCLUlong(publicKey.substr(64, 64));
 
-        printf("SeedX: %llu %llu %llu %llu\n", clSeedX.s0, clSeedX.s1, clSeedX.s2, clSeedX.s3);
-        printf("SeedY: %llu %llu %llu %llu\n", clSeedY.s0, clSeedY.s1, clSeedY.s2, clSeedY.s3);
+        LOG_INFO("Public key SeedX: %llu %llu %llu %llu\n", clSeedX.s0, clSeedX.s1, clSeedX.s2, clSeedX.s3);
+        LOG_INFO("Public key SeedY: %llu %llu %llu %llu\n", clSeedY.s0, clSeedY.s1, clSeedY.s2, clSeedY.s3);
 
 
         private_search_data init_data;

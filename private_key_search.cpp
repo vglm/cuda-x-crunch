@@ -1,3 +1,4 @@
+#include "version.h"
 #include "private_key.h"
 #include "utils.hpp"
 #include "Logger.hpp"
@@ -41,11 +42,6 @@ void private_data_destroy(private_search_data *init_data)
 {
     delete[] init_data->host_result;
     cudaFree(init_data->device_result);
-    //cudaFree(init_data->device_pInverse);
-#ifdef USE_PREV_LAMBDA_GLOBAL
-    cudaFree(init_data->device_prev_lambda);
-    cudaFree(init_data->device_deltaX);
-#endif
     cudaFree(init_data->device_precomp);
 }
 static std::string toHex(const uint8_t * const s, const size_t len) {
@@ -61,7 +57,7 @@ static std::string toHex(const uint8_t * const s, const size_t len) {
 
 	return r;
 }
-static void printResult(std::string public_key, cl_ulong4 seed, uint64_t round, search_result r) {
+static void printResult(std::string public_key, cl_ulong4 seed, uint64_t round, search_result r, private_search_data *init_data) {
 
 	// Format private key
 	uint64_t carry = 0;
@@ -81,8 +77,7 @@ static void printResult(std::string public_key, cl_ulong4 seed, uint64_t round, 
 	const std::string strPublic = toHex(r.addr, 20);
 
 	// Print
-
-	std::cout << "target\\release\\addresser.exe" << " compute-address --public-key-base " << public_key << " --private-key-add " << strPrivate << " -e " << strPublic << std::endl;
+    printf("0x%s,0x%s,0x%s,%s_%lld\n", public_key.c_str(), strPublic.c_str(), strPrivate.c_str(), g_strVersion.c_str(), init_data->total_compute / 1000 / 1000 / 1000);
 }
 void private_data_search(std::string public_key, private_search_data *init_data)
 {
@@ -115,7 +110,7 @@ void private_data_search(std::string public_key, private_search_data *init_data)
     char hexAddr[43] = { 0 };
     for (int n = 0; n < RESULTS_ARRAY_SIZE; n++) {
         if (f[n].round != 0) {
-            printResult(public_key, init_data->seed, f[n].round, f[n]);
+            printResult(public_key, init_data->seed, f[n].round, f[n], init_data);
             //salt newSalt;
             //newSalt.q[0] = randomSalt.q[0];
             /*newSalt.q[1] = randomSalt.q[1];
