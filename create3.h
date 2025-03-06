@@ -38,6 +38,13 @@ union ethhash {
     uint64_t q[25];
 };
 
+union ethaddress {
+    uint8_t b[40];
+    uint16_t w[20];
+    uint32_t d[10];
+    uint64_t q[5];
+};
+
 void load_seed_to_device(salt *seed_data);
 void load_factory_to_device(const char* factory);
 void create3_data_init(create3_search_data* data);
