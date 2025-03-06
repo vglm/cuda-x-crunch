@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.hpp"
+
 #include <cstdint>
 
 struct factory {
@@ -34,6 +36,12 @@ union ethhash {
     uint8_t b[200];
     uint32_t d[50];
     uint64_t q[25];
+};
+
+union ethaddress {
+    uint8_t b[20];
+    uint16_t w[10];
+    uint32_t d[5];
 };
 
 void load_seed_to_device(salt *seed_data);
