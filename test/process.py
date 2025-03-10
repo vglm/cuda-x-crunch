@@ -23,7 +23,7 @@ def read_stream(process, stream, is_error, output_decoder):
         print("Thread finished")
 
 
-def run_process(command, output_decoder):
+def run_process(command, output_decoder, error_decoder):
     """Runs a command and allows sending signals to terminate it."""
     process = subprocess.Popen(command,
                                stdout=subprocess.PIPE,
@@ -32,7 +32,7 @@ def run_process(command, output_decoder):
 
     # Create separate threads for stdout and stderr
     stdout_thread = threading.Thread(target=read_stream, args=(process, process.stdout, False, output_decoder))
-    stderr_thread = threading.Thread(target=read_stream, args=(process, process.stderr, True, None))
+    stderr_thread = threading.Thread(target=read_stream, args=(process, process.stderr, True, error_decoder))
 
     stdout_thread.start()
     stderr_thread.start()
