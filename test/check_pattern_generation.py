@@ -1,9 +1,6 @@
 import os
 import time
-import signal
 import re
-
-from more_itertools.recipes import loops
 
 from process import run_process
 
