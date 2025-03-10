@@ -2,12 +2,17 @@ import os
 import time
 import signal
 import re
+
+from more_itertools.recipes import loops
+
 from process import run_process
 
 total_compute = 0
 total_accepted_addresses = 0
 pattern3_found = [0] * 40
 old_pattern3_founds = 0
+
+all_patterns3_4zeroes_found = False
 
 def find_pattern_indices(pattern, string):
     return [match.start() for match in re.finditer(pattern, string)]
@@ -16,11 +21,14 @@ def find_pattern_indices(pattern, string):
 def accept_pattern(str):
     global old_pattern3_founds
     global pattern3_found
-    ind = find_pattern_indices("0000", str)
-    if len(ind) > 1:
-        diffind = ind[1] - ind[0]
-        if diffind == 7:
-            pattern3_found[ind[0]] += 1
+    accepted = False
+    ind = find_pattern_indices("0000...0000", str)
+    if len(ind) > 0:
+        accepted = True
+        pattern3_found[ind[0]] += 1
+
+    if not accepted:
+        print("Pattern not accepted: {}".format(str))
 
     pattern3_founds = 0;
     for i in range(40):
@@ -28,8 +36,11 @@ def accept_pattern(str):
             pattern3_founds += 1
 
     if old_pattern3_founds != pattern3_founds:
-        print("Pattern 3 found {}/33 times".format(pattern3_founds))
+        print("Pattern 3 found {}/30 times".format(pattern3_founds))
     old_pattern3_founds = pattern3_founds
+    if old_pattern3_founds == 30:
+        global all_patterns3_4zeroes_found
+        all_patterns3_4zeroes_found = True
 
 
 def check_address(address):
@@ -71,14 +82,26 @@ command = ["docker", "run", "--gpus", "all", "--name", "cuda_test", "--rm", "-t"
 process, stdout_thread, stderr_thread = run_process(command, decode_output, decode_error)
 print("Process started with PID:", process.pid)
 
+ret = 0
+try:
+    start_timer = time.time()
+    while True:
 
-time.sleep(120)
-print("Stop docker container...")
-os.system("docker stop cuda_test -t 0")
+        if all_patterns3_4zeroes_found:
+            print("All patterns found, stopping...")
+            break
+        if time.time() - start_timer > 10:
+            print("Timeout reached, stopping...")
+            raise TimeoutError("Timeout reached")
+except Exception as e:
+    print(f"An error occurred: {e}")
+    raise e
+finally:
+    print("Stop docker container...")
+    os.system("docker stop cuda_test -t 0")
 
-print("Process {} closed...".format(process.pid))
-stdout_thread.join()
-stderr_thread.join()
-
+    print("Process {} closed...".format(process.pid))
+    stdout_thread.join()
+    stderr_thread.join()
 
 

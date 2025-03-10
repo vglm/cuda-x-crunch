@@ -181,14 +181,6 @@ __device__ inline uint32_t scorer(ethaddress& addr)
         (MATCH0_32(addr.d[3], 0x000ffff0) && MATCH0_32(addr.d[4], 0x00ffff00)) ||
         (MATCH0_32(addr.d[3], 0x0000ffff) && MATCH0_32(addr.d[4], 0x000ffff0)) ||
         (MATCH0_32(addr.d[3], 0x00000fff) && MATCH0_32(addr.d[4], 0xf000ffff)) ||
-        (MATCH0_32(addr.d[3], 0x000000ff) && MATCH0_32(addr.d[4], 0xff000fff) && MATCH0_32(addr.d[5], 0xf0000000)) ||
-        (MATCH0_32(addr.d[3], 0x0000000f) && MATCH0_32(addr.d[4], 0xfff000ff) && MATCH0_32(addr.d[5], 0xff000000)) ||
-        (MATCH0_32(addr.d[4], 0xffff000f) && MATCH0_32(addr.d[5], 0xfff00000)) ||
-        (MATCH0_32(addr.d[4], 0x0ffff000) && MATCH0_32(addr.d[5], 0xffff0000)) ||
-        (MATCH0_32(addr.d[4], 0x00ffff00) && MATCH0_32(addr.d[5], 0x0ffff000)) ||
-        (MATCH0_32(addr.d[4], 0x000ffff0) && MATCH0_32(addr.d[5], 0x00ffff00)) ||
-        (MATCH0_32(addr.d[4], 0x0000ffff) && MATCH0_32(addr.d[5], 0x000ffff0)) ||
-        (MATCH0_32(addr.d[4], 0x00000fff) && MATCH0_32(addr.d[5], 0xf000ffff)) ||
         0
         ) {
         pattern_zeroes = 1;
