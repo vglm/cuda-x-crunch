@@ -48,6 +48,14 @@ void signalHandler(int signal) {
 		std::cout << "\nCtrl + C detected. Exiting gracefully..." << std::endl;
 		g_exiting = true;
 	}
+	if (signal == SIGTERM) {
+        std::cout << "\nTermination signal detected. Exiting gracefully..." << std::endl;
+        g_exiting = true;
+    }
+    if (signal == SIGABRT) {
+        std::cout << "\nAbort signal detected. Exiting gracefully..." << std::endl;
+        g_exiting = true;
+    }
 }
 
 

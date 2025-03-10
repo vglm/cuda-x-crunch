@@ -2,7 +2,7 @@ name: Build self hosted
 
 on:
   push:
-    branches: [ "main", "actions/build" ]
+    branches: [ "main", "actions/build", "pattern-generation" ]
   workflow_dispatch:
     inputs:
       build_type:
@@ -32,3 +32,6 @@ jobs:
         run: |
           docker build -t profanity_cuda .
 
+      - name: Run checks
+        run: |
+          python -u test/check_pattern_generation.py

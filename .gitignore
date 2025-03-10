@@ -5,7 +5,6 @@
 /Debug/
 /particle_test.dir/
 /particles.dir/
-/Testing/
 /x64/
 /*.vcxproj*
 /CTestTestfile.cmake
