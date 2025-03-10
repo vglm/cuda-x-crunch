@@ -100,13 +100,13 @@ ret = 0
 try:
     start_timer = time.time()
     while True:
-        if total_patterns3_found < 10 and total_compute > 2:
-            raise ValueError("Not enough addresses found to continue. Need at least 10 addresses for 2GH of compute")
+        if total_patterns3_found < 10 and total_compute > 3:
+            raise ValueError("Not enough addresses found to continue. Need at least 10 addresses for 3GH of compute")
 
         if total_patterns3_found == 30 and heavy_zero_found > 0:
             logger.info("All patterns found, stopping...")
             break
-        if time.time() - start_timer > 120:
+        if time.time() - start_timer > 180:
             logger.info("Timeout reached, stopping...")
             raise TimeoutError("Timeout reached")
 except Exception as e:
