@@ -1,0 +1,11 @@
+Debug
+Release
+x64
+.idea
+test
+CMakeFiles
+*.vcxproj*
+*.bat
+*.sln
+*Dockerfile*
+.github
