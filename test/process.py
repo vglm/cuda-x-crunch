@@ -1,24 +1,34 @@
+import os
 import subprocess
 import threading
 import sys
 
 def read_stream(process, stream, is_error, output_decoder):
-    for line in iter(stream.readline, b''):
-        decoded_line = line.decode('utf-8').strip()
-        if output_decoder:
-            output_decoder(process, decoded_line)
-        else:
-            if is_error:
-                print("  stderr {} :".format(process.pid), decoded_line, file=sys.stderr)
+    try:
+        for line in iter(stream.readline, b''):
+            try:
+                decoded_line = line.decode('utf-8').strip()
+            except:
+                decoded_line = "CANNOT DECODE"
+            if output_decoder:
+                output_decoder(process, decoded_line)
             else:
-                print("  stdout {} :".format(process.pid), decoded_line)
-    stream.close()
+                if is_error:
+                    print("  stderr {} :".format(process.pid), decoded_line, file=sys.stderr)
+                else:
+                    print("  stdout {} :".format(process.pid), decoded_line)
+    except Exception as ex:
+        print(ex)
+    finally:
+        print("Thread finished")
+
 
 def run_process(command, output_decoder):
     """Runs a command and allows sending signals to terminate it."""
     process = subprocess.Popen(command,
                                stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
+                               stderr=subprocess.PIPE,
+                               )
 
     # Create separate threads for stdout and stderr
     stdout_thread = threading.Thread(target=read_stream, args=(process, process.stdout, False, output_decoder))
