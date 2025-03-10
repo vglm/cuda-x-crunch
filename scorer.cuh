@@ -15,6 +15,9 @@ __device__ __forceinline__ uint32_t bswap32(uint32_t x) {
 #define MATCH5_PATTERN(a, b, c, d, e) \
     (let_full[i] == a && let_full[i + 1] == b && let_full[i + 2] == c && let_full[i + 3] == d && let_full[i + 4] == e)
 
+#define MATCH0_32(a, MASK) \
+    ((a & bswap32(MASK)) == 0x0)
+
 __device__ inline uint32_t scorer(ethaddress& addr)
 {
     uint8_t let_full[45];
@@ -123,7 +126,7 @@ __device__ inline uint32_t scorer(ethaddress& addr)
     leading_score -= 50;
 
     int pattern = 0;
-    int number = addr.d[0];
+    uint32_t number = addr.d[0];
 
 
 
@@ -132,24 +135,74 @@ __device__ inline uint32_t scorer(ethaddress& addr)
         || number == bswap32(0xc0ffee00)
         || number == bswap32(0xdaedbeef)
         || number == bswap32(0x31415926)
+        || number == bswap32(0xbb500000)
+        || number == bswap32(0x0bb50000)
+        || number == bswap32(0x00bb5000)
+        || number == bswap32(0x000bb500)
+        || number == bswap32(0x000bb500)
         || number == bswap32(0x000bb500)
         || number == bswap32(0x0000bb50)
         || number == bswap32(0x00000bb5)
-        || number == bswap32(0x0bb50bb5)
+        || number == bswap32(0xbb500bb5)
         ) {
         pattern = 1;
     }
 
+    int pattern_zeroes = 0;
 
     if (
-        pattern >= 1 ||
-        bb5numbers >= 9 ||
-        pattern_score >= 3 ||
-        etherscan_score >= 8 ||
-        group_score >= 15 ||
-        leading_score >= 8 ||
-        letter_score > 32 ||
-        number_score >= 40 ||
+        (MATCH0_32(addr.d[0], 0xffff000f) && MATCH0_32(addr.d[1], 0xfff00000)) ||
+        (MATCH0_32(addr.d[0], 0x0ffff000) && MATCH0_32(addr.d[1], 0xffff0000)) ||
+        (MATCH0_32(addr.d[0], 0x00ffff00) && MATCH0_32(addr.d[1], 0x0ffff000)) ||
+        (MATCH0_32(addr.d[0], 0x000ffff0) && MATCH0_32(addr.d[1], 0x00ffff00)) ||
+        (MATCH0_32(addr.d[0], 0x0000ffff) && MATCH0_32(addr.d[1], 0x000ffff0)) ||
+        (MATCH0_32(addr.d[0], 0x00000fff) && MATCH0_32(addr.d[1], 0xf000ffff)) ||
+        (MATCH0_32(addr.d[0], 0x000000ff) && MATCH0_32(addr.d[1], 0xff000fff) && MATCH0_32(addr.d[2], 0xf0000000)) ||
+        (MATCH0_32(addr.d[0], 0x0000000f) && MATCH0_32(addr.d[1], 0xfff000ff) && MATCH0_32(addr.d[2], 0xff000000)) ||
+        (MATCH0_32(addr.d[1], 0xffff000f) && MATCH0_32(addr.d[2], 0xfff00000)) ||
+        (MATCH0_32(addr.d[1], 0x0ffff000) && MATCH0_32(addr.d[2], 0xffff0000)) ||
+        (MATCH0_32(addr.d[1], 0x00ffff00) && MATCH0_32(addr.d[2], 0x0ffff000)) ||
+        (MATCH0_32(addr.d[1], 0x000ffff0) && MATCH0_32(addr.d[2], 0x00ffff00)) ||
+        (MATCH0_32(addr.d[1], 0x0000ffff) && MATCH0_32(addr.d[2], 0x000ffff0)) ||
+        (MATCH0_32(addr.d[1], 0x00000fff) && MATCH0_32(addr.d[2], 0xf000ffff)) ||
+        (MATCH0_32(addr.d[1], 0x000000ff) && MATCH0_32(addr.d[2], 0xff000fff) && MATCH0_32(addr.d[3], 0xf0000000)) ||
+        (MATCH0_32(addr.d[1], 0x0000000f) && MATCH0_32(addr.d[2], 0xfff000ff) && MATCH0_32(addr.d[3], 0xff000000)) ||
+        (MATCH0_32(addr.d[2], 0xffff000f) && MATCH0_32(addr.d[3], 0xfff00000)) ||
+        (MATCH0_32(addr.d[2], 0x0ffff000) && MATCH0_32(addr.d[3], 0xffff0000)) ||
+        (MATCH0_32(addr.d[2], 0x00ffff00) && MATCH0_32(addr.d[3], 0x0ffff000)) ||
+        (MATCH0_32(addr.d[2], 0x000ffff0) && MATCH0_32(addr.d[3], 0x00ffff00)) ||
+        (MATCH0_32(addr.d[2], 0x0000ffff) && MATCH0_32(addr.d[3], 0x000ffff0)) ||
+        (MATCH0_32(addr.d[2], 0x00000fff) && MATCH0_32(addr.d[3], 0xf000ffff)) ||
+        (MATCH0_32(addr.d[2], 0x000000ff) && MATCH0_32(addr.d[3], 0xff000fff) && MATCH0_32(addr.d[4], 0xf0000000)) ||
+        (MATCH0_32(addr.d[2], 0x0000000f) && MATCH0_32(addr.d[3], 0xfff000ff) && MATCH0_32(addr.d[4], 0xff000000)) ||
+        (MATCH0_32(addr.d[3], 0xffff000f) && MATCH0_32(addr.d[4], 0xfff00000)) ||
+        (MATCH0_32(addr.d[3], 0x0ffff000) && MATCH0_32(addr.d[4], 0xffff0000)) ||
+        (MATCH0_32(addr.d[3], 0x00ffff00) && MATCH0_32(addr.d[4], 0x0ffff000)) ||
+        (MATCH0_32(addr.d[3], 0x000ffff0) && MATCH0_32(addr.d[4], 0x00ffff00)) ||
+        (MATCH0_32(addr.d[3], 0x0000ffff) && MATCH0_32(addr.d[4], 0x000ffff0)) ||
+        (MATCH0_32(addr.d[3], 0x00000fff) && MATCH0_32(addr.d[4], 0xf000ffff)) ||
+        (MATCH0_32(addr.d[3], 0x000000ff) && MATCH0_32(addr.d[4], 0xff000fff) && MATCH0_32(addr.d[5], 0xf0000000)) ||
+        (MATCH0_32(addr.d[3], 0x0000000f) && MATCH0_32(addr.d[4], 0xfff000ff) && MATCH0_32(addr.d[5], 0xff000000)) ||
+        (MATCH0_32(addr.d[4], 0xffff000f) && MATCH0_32(addr.d[5], 0xfff00000)) ||
+        (MATCH0_32(addr.d[4], 0x0ffff000) && MATCH0_32(addr.d[5], 0xffff0000)) ||
+        (MATCH0_32(addr.d[4], 0x00ffff00) && MATCH0_32(addr.d[5], 0x0ffff000)) ||
+        (MATCH0_32(addr.d[4], 0x000ffff0) && MATCH0_32(addr.d[5], 0x00ffff00)) ||
+        (MATCH0_32(addr.d[4], 0x0000ffff) && MATCH0_32(addr.d[5], 0x000ffff0)) ||
+        (MATCH0_32(addr.d[4], 0x00000fff) && MATCH0_32(addr.d[5], 0xf000ffff)) ||
+        0
+        ) {
+        pattern_zeroes = 1;
+    }
+    if (
+            pattern_zeroes >= 1 ||
+    //    pattern >= 1 ||
+//        bb5numbers >= 9 ||
+ //       pattern_score >= 3 ||
+  //      etherscan_score >= 8 ||
+   //     group_score >= 15 ||
+    //    leading_score >= 8 ||
+     //   letter_score > 32 ||
+      //  number_score >= 40 ||
         0
         ) {
         return SCORE_ACCEPTED;
