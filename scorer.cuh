@@ -13,56 +13,44 @@ __device__ __forceinline__ uint32_t bswap32(uint32_t x) {
 
 __device__ inline uint32_t scorer(ethaddress& addr)
 {
-    uint8_t let_full[40];
-    for (int i = 0; i < 20; i++) {
-        let_full[2 * i] = (addr.b[i] >> 4) & 0x0f;
-        let_full[2 * i + 1] = addr.b[i] & 0x0f;
-    }
-
     int group_score = 0;
     int letter_score = 0;
     int number_score = 0;
-    int pattern_score = 0;
-    int sum[16] = { 0 };
-    for (int i = 0; i < 40; i += 4) {
-        if (*(uint32_t*)&let_full[0] == *(uint32_t*)&let_full[i]) {
-            pattern_score += 1;
+
+
+    int number_of_zeroes = 0;
+    {
+        uint8_t let_full[40];
+        for (int i = 0; i < 20; i++) {
+            let_full[2 * i] = (addr.b[i] >> 4) & 0x0f;
+            let_full[2 * i + 1] = addr.b[i] & 0x0f;
         }
-        else {
-            break;
+
+        for (int i = 0; i < 40; i++) {
+            uint8_t letter = let_full[i];
+
+            if (i > 0 && letter == let_full[i - 1]) {
+                group_score += 1;
+            }
+            if (letter >= 10) {
+                letter_score += 1;
+            }
+            if (letter < 10) {
+                number_score += 1;
+            }
+            if (letter == 0) {
+                number_of_zeroes += 1;
+            }
         }
     }
 
-
-
-
-    for (int i = 0; i < 40; i++) {
-        uint8_t letter = let_full[i];
-
-        if (i > 0 && letter == let_full[i - 1]) {
-            group_score += 1;
-        }
-        if (letter >= 10) {
-            letter_score += 1;
-        }
-        if (letter < 10) {
-            number_score += 1;
-        }
-        sum[let_full[i]] += 1;
-
-    }
-    int max_sum = 0;
-    for (int i = 0; i < 16; i++) {
-        if (sum[i] > max_sum) {
-            max_sum = sum[i];
-        }
+    int pattern_repeats = 0;
+    if (addr.d[0] == addr.d[1] && addr.d[1] == addr.d[2] && addr.d[2] == addr.d[3]) {
+        pattern_repeats = 1;
     }
 
     int pattern = 0;
     uint32_t number = addr.d[0];
-
-
-
     if (number == bswap32(0xbadbabe0)
         || number == bswap32(0xb00bbabe)
         || number == bswap32(0xc0ffee00)
@@ -90,7 +78,7 @@ __device__ inline uint32_t scorer(ethaddress& addr)
 
     int pattern_zeroes = 0;
 
-    if (sum[0] >= 8) {
+    if (number_of_zeroes >= 8)
         if (
             (MATCH0_32(addr.d[0], 0xffff000f) && MATCH0_32(addr.d[1], 0xfff00000)) ||
             (MATCH0_32(addr.d[0], 0x0ffff000) && MATCH0_32(addr.d[1], 0xffff0000)) ||
@@ -126,15 +114,15 @@ __device__ inline uint32_t scorer(ethaddress& addr)
             ) {
             pattern_zeroes = 1;
         }
-    }
+
     if (
         pattern_zeroes >= 1 ||
         pattern >= 1 ||
-        pattern_score >= 3 ||
+        pattern_repeats >= 1 ||
         group_score >= 15 ||
         letter_score > 32 ||
         number_score >= 40 ||
-        max_sum >= 17 ||
+        number_of_zeroes >= 17 ||
         0
         ) {
         return SCORE_ACCEPTED;
