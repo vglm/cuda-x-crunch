@@ -215,9 +215,9 @@ if __name__ == "__main__":
 
     for gpu in gpus:
 
-        command = "Debug/profanity_cuda -b {} --device {} {} {} {}".format(max_time, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
+        command = "profanity_cuda -b {} --device {} {}{}{}".format(max_time, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
         print(command)
-        process, stdout_thread, stderr_thread = run_process(command, decode_output, decode_error)
+        process, stdout_thread, stderr_thread = run_process(command.split(" "), decode_output, decode_error)
         process.index = gpu['index']
 
         gpu['process'] = process

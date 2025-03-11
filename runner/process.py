@@ -25,6 +25,7 @@ def read_stream(process, stream, is_error, output_decoder):
 
 def run_process(command, output_decoder, error_decoder):
     """Runs a command and allows sending signals to terminate it."""
+    print("Running command: {}".format(command))
     process = subprocess.Popen(command,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
