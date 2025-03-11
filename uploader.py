@@ -8,6 +8,21 @@ import glob
 FOLDER_PATH = 'output'  # Path to the folder containing the CSV files
 API_URL = 'https://addressology.ovh/api/fancy/new_many'  # API endpoint URL
 
+def start_job():
+
+    create_job = {
+        "miner": {
+            "provNodeId": None,
+            "provRewardAddr": None,
+            "provName": "Unknown",
+            "provExtraInfo": "Test"
+        },
+        "cruncherVer": "0.0.0",
+        "requestorId": "0x0000000000000000000000000000000000000000"
+    }
+    response = requests.post(API_URL, json=create_job)
+
+
 def upload_file(salt, address, factory, version):
     """Uploads a file to the specified API endpoint."""
     response = requests.post(API_URL, json={'salt': salt, 'address': address, 'factory': factory, 'miner': version})

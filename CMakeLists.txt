@@ -5,8 +5,9 @@ project(profanity_cuda LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Set the CUDA architecture (optional)
-set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)  # Modify according to your GPU
+if(DEFINED ENV{CUDA_ARCHITECTURES})
+    set(CMAKE_CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES})
+endif()
 
 add_executable(profanity_cuda
   profanity.cu
