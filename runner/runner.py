@@ -169,7 +169,6 @@ def get_gpu_info():
     except FileNotFoundError:
         print("nvidia-smi not found. Ensure you have NVIDIA drivers and CUDA installed.")
 
-last_print_time = time.time()
 def decode_output(process, stdout_line):
     global gpus
     global total_accepted_addresses
@@ -192,9 +191,13 @@ def decode_output(process, stdout_line):
             factory = stdout_split[2]
             check_address(address)
 
-    global last_print_time
-    if time.time() - last_print_time > 5:
-        last_print_time = time.time()
+    try:
+        pr = gpus[idx]["last_print_time"]
+    except Exception as ex:
+        gpus[idx]["last_print_time"] = time.time()
+
+    if time.time() - gpus[idx]["last_print_time"] > 5:
+        gpus[idx]["last_print_time"] = time.time()
         logger.debug("GPU no: {} Accepted: {} Total {}G Speed {:.0f}MH/s".format(idx, total_accepted_addresses, gpus[idx]["total_compute"], gpus[idx]["reported_speed"]))
 
 
