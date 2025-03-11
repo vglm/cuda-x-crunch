@@ -17,6 +17,8 @@ total_patterns3_found = 0
 reported_speed = 0
 heavy_zero_found = 0
 start_time = time.time()
+
+to_send = []
 def find_pattern_indices(pattern, string):
     return [match.start() for match in re.finditer(pattern, string)]
 
@@ -42,7 +44,7 @@ def accept_pattern(str):
     # if not accepted:
     #   print("Pattern not accepted: {}".format(str))
 
-    pattern3_founds = 0;
+    pattern3_founds = 0
     for i in range(40):
         if pattern3_found[i] > 0:
             pattern3_founds += 1
