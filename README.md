@@ -22,9 +22,21 @@ You may have to fix msbuild path in the script if needed.
 RTX 3060: 350 Mh/s
 
 With parameters: -k 256 -g 10000 -r 2000
+RTX 1050ti: 38 Mh/s (create3) / 35 Mh/s (private keys)
+
+RTX 1080ti:
+    -k 128 -g 1000 -r 2000
+RTX 1080ti: 250 Mh/s (create3) / 133 Mh/s (private keys)
 RTX 2080ti: 450 Mh/s (create3) / 220 Mh/s (private keys)
 RTX 3090: 990 Mh/s
-RTX 4090: 2320 Mh/s
+RTX 3090ti:
+-k 128 -g 4000 -r 4000
+1100Mh/s (create3) / 780 Mh/s (private keys)
+RTX 4090: 
+-k 256 -g 5000 -r 4000  /  -k 64 -g 5000 -r 1000
+2270Mh/s (create3) / 1500 Mh/s (private keys)
+
+
 RTX 5090: 2700 Mh/s (create3) / 1600 Mh/s (private keys) 
 
 

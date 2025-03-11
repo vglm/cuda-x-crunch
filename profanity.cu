@@ -126,7 +126,7 @@ int main(int argc, char ** argv)
     bool bVersion = false;
     uint64_t uSeed = 0;
 
-    int kernelSize = 256;
+    int kernelSize = 128; //256 sometimes give a bit better results, but on older cards it slows a lot
     int groups = 1000;
     int rounds = 1000;
     std::string publicKey = "";
