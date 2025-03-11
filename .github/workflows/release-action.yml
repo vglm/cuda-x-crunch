@@ -71,7 +71,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-release-12-2-1, build-release-12-4-1, build-release-12-8-0]
+    needs: [build-release-12-4-1, build-release-12-8-0]
 
     permissions:
       contents: write

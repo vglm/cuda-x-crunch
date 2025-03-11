@@ -3,7 +3,7 @@ RUN apt update && apt install -y git cmake
 COPY . /app
 WORKDIR /app
 RUN git clean -fdx
-RUN cmake .
+RUN export CUDA_ARCHITECTURES="70 75 80 86 89 90" && cmake .
 RUN make
 
 FROM ubuntu:22.04
