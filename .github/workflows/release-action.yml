@@ -25,6 +25,7 @@ jobs:
 
       - name: Run build script
         run: |
+          python patch_cuda_architectures.py
           python build-cross.py
           mv profanity_cuda profanity_cuda-12.4.1
         env:
@@ -56,6 +57,7 @@ jobs:
 
       - name: Run build script
         run: |
+          python patch_cuda_architectures.py
           python build-cross.py
           mv profanity_cuda profanity_cuda-12.8.0
         env:
