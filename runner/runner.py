@@ -64,6 +64,7 @@ def update_job(job_id, upload_many, reported_hashes, reported_cost):
         "data": upload_many
     }
     body = json.dumps(update)
+    print(json.dumps(update, indent=4))
     logger.info(f"Update data size: {len(body) / 1024:.1f}kB Total compute: {reported_hashes}")
 
     url = f"{UPLOAD_URL_BASE}/api/fancy/new_many2"
@@ -234,44 +235,49 @@ def get_gpu_info():
     except FileNotFoundError:
         print("nvidia-smi not found. Ensure you have NVIDIA drivers and CUDA installed.")
 
+
+
 def decode_output(process, stdout_line):
-    global gpus
-    global total_accepted_addresses
     try:
-        idx = process.index
+        global gpus
+        global total_accepted_addresses
+        try:
+            idx = process.index
+        except Exception as ex:
+            print("Index not found in process")
+            return
+
+        if "Total compute" in stdout_line:
+            total_compute = float(stdout_line.split("Total compute")[1].split("GH")[0].strip())
+            reported_speed = float(stdout_line.split("GH -")[1].split("MH")[0].strip())
+            gpus[idx]["reported_speed"] = reported_speed
+            gpus[idx]["total_compute"] = total_compute
+
+        if stdout_line.startswith("0x"):
+            stdout_split = stdout_line.split(",")
+            if len(stdout_split) == 4:
+                salt = stdout_split[0]
+                address = stdout_split[1]
+                factory = stdout_split[2]
+                check_address(address)
+
+                global multiple_results
+                multiple_results.append({
+                    "salt": salt,
+                    "address": address,
+                    "factory": factory
+                })
+
+        try:
+            pr = gpus[idx]["last_print_time"]
+        except Exception as ex:
+            gpus[idx]["last_print_time"] = time.time()
+
+        if time.time() - gpus[idx]["last_print_time"] > 5:
+            gpus[idx]["last_print_time"] = time.time()
+            logger.info("GPU no: {} Accepted: {} Total {}G Speed {:.0f}MH/s".format(idx, total_accepted_addresses, gpus[idx].get("total_compute", 0), gpus[idx].get("reported_speed", 0)))
     except Exception as ex:
-        print("Index not found in process")
-        return
-    if "Total compute" in stdout_line:
-        total_compute = float(stdout_line.split("Total compute")[1].split("GH")[0].strip())
-        reported_speed = float(stdout_line.split("GH -")[1].split("MH")[0].strip())
-        gpus[idx]["reported_speed"] = reported_speed
-        gpus[idx]["total_compute"] = total_compute
-
-    if stdout_line.startswith("0x"):
-        stdout_split = stdout_line.split(",")
-        if len(stdout_split) == 4:
-            salt = stdout_split[0]
-            address = stdout_split[1]
-            factory = stdout_split[2]
-            check_address(address)
-
-            global multiple_results
-            multiple_results.append({
-                "salt": salt,
-                "address": address,
-                "factory": factory
-            })
-
-    try:
-        pr = gpus[idx]["last_print_time"]
-    except Exception as ex:
-        gpus[idx]["last_print_time"] = time.time()
-
-    if time.time() - gpus[idx]["last_print_time"] > 5:
-        gpus[idx]["last_print_time"] = time.time()
-        logger.info("GPU no: {} Accepted: {} Total {}G Speed {:.0f}MH/s".format(idx, total_accepted_addresses, gpus[idx]["total_compute"], gpus[idx]["reported_speed"]))
-
+        print("Failed to decode line: {} - {}".format(stdout_line, ex))
 
 def decode_error(process, stdout_line):
     decode_output(process, stdout_line)
