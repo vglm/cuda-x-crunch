@@ -5,8 +5,8 @@ project(profanity_cuda LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 
-# Set the CUDA architecture (optional)
-set(CMAKE_CUDA_ARCHITECTURES 75 80 86 89)  # Modify according to your GPU
+# This entry is patched during production build. For debug build use only one architecture.
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 add_executable(profanity_cuda
   profanity.cu
@@ -31,9 +31,4 @@ add_executable(profanity_cuda
      target_include_directories(profanity_cuda PRIVATE /usr/local/cuda/targets/x86_64-linux/include)
  endif()
 
-
-# Additional compile options (optional)
-#target_compile_options(profanity_cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--use_fast_math>)
-
-#set_property(TARGET profanity_cuda PROPERTY CUDA_ARCHITECTURES 72)
 

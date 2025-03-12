@@ -48,6 +48,14 @@ void signalHandler(int signal) {
 		std::cout << "\nCtrl + C detected. Exiting gracefully..." << std::endl;
 		g_exiting = true;
 	}
+	if (signal == SIGTERM) {
+        std::cout << "\nTermination signal detected. Exiting gracefully..." << std::endl;
+        g_exiting = true;
+    }
+    if (signal == SIGABRT) {
+        std::cout << "\nAbort signal detected. Exiting gracefully..." << std::endl;
+        g_exiting = true;
+    }
 }
 
 
@@ -118,9 +126,10 @@ int main(int argc, char ** argv)
     bool bVersion = false;
     uint64_t uSeed = 0;
 
-    int kernelSize = 256;
+    int kernelSize = 128; //256 sometimes give a bit better results, but on older cards it slows a lot
     int groups = 1000;
     int rounds = 1000;
+    int device_id = 0;
     std::string publicKey = "";
     std::string strOutputDirectory = "";
     std::string factoryAddr = "0x9E3F8eaE49E442A323EF2094f277Bf62752E6995";
@@ -138,6 +147,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('g', "groups", groups);
     argp.addSwitch('r', "rounds", rounds);
     argp.addSwitch('z', "public", publicKey);
+    argp.addSwitch('i', "device", device_id);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -165,6 +175,11 @@ int main(int argc, char ** argv)
     {
         int deviceCount;
         cudaGetDeviceCount(&deviceCount);
+        if (device_id >= deviceCount) {
+            std::cerr << "error: device id is out of range" << std::endl;
+            return 1;
+        }
+        cudaSetDevice(device_id);
 
         for (int device = 0; device < deviceCount; ++device) {
             cudaDeviceProp prop;

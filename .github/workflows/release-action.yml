@@ -25,43 +25,17 @@ jobs:
 
       - name: Run build script
         run: |
+          python patch_cuda_architectures.py
           python build-cross.py
           mv profanity_cuda profanity_cuda-12.4.1
+        env:
+          CUDA_ARCHITECTURES: 61 70 75 80 86 89
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: profanity_cuda-12.4.1
           path: profanity_cuda-12.4.1
-          retention-days: 1
-
-  build-release-12-2-1:
-    name: Build Ubuntu 12.2.1
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Cuda toolkit
-        uses: Jimver/cuda-toolkit@v0.2.21
-        with:
-          cuda: '12.2.1'
-          use-github-cache: 'false'
-          use-local-cache: 'false'
-          log-file-suffix: '12.2.1.txt'
-          linux-local-args: '["--toolkit"]'
-
-      - name: Run build script
-        run: |
-          python build-cross.py
-          mv profanity_cuda profanity_cuda-12.2.1
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: profanity_cuda-12.2.1
-          path: profanity_cuda-12.2.1
           retention-days: 1
 
   build-release-12-8-0:
@@ -83,8 +57,11 @@ jobs:
 
       - name: Run build script
         run: |
+          python patch_cuda_architectures.py
           python build-cross.py
           mv profanity_cuda profanity_cuda-12.8.0
+        env:
+          CUDA_ARCHITECTURES: 61 70 75 80 86 89 90
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -96,7 +73,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-release-12-2-1, build-release-12-4-1, build-release-12-8-0]
+    needs: [build-release-12-4-1, build-release-12-8-0]
 
     permissions:
       contents: write
@@ -110,11 +87,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: profanity_cuda-12.4.1
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: profanity_cuda-12.2.1
 
       - name: Download artifact
         uses: actions/download-artifact@v4
@@ -135,16 +107,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create gvmkit image 12.2.1
-        run: |
-          cp profanity_cuda-12.2.1 runtime/profanity_cuda
-          cd runtime
-          docker build -f ubuntu2204.dockerfile -t cuda .
-          gvmkit-build cuda --push-to nvidia/cuda-x-crunch:prod-12.2.1
-        env:
-          REGISTRY_USER: nvidia
-          REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
 
       - name: Create gvmkit image 12.4.1
         run: |
@@ -182,6 +144,5 @@ jobs:
           files: |
             profanity_cuda-12.4.1
             profanity_cuda-12.8.0
-            profanity_cuda-12.2.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
