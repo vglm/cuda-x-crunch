@@ -23,7 +23,7 @@ job_id = None
 UPLOAD_URL_BASE = os.environ.get("UPLOAD_URL_BASE", "https://addressology.ovh")
 FACTORY = os.environ.get('FACTORY', None)
 PUBLIC_KEY_BASE = os.environ.get('PUBLIC_KEY_BASE', None)
-
+REQUESTOR_ID = os.environ.get('REQUESTOR_ID', "0x0000000000000000000000000000000000000000")
 multiple_results = []
 
 def start_job():
@@ -36,7 +36,7 @@ def start_job():
             "provExtraInfo": "Test"
         },
         "cruncherVer": "0.0.0",
-        "requestorId": "0x0000000000000000000000000000000000000000"
+        "requestorId": REQUESTOR_ID
     }
     response = requests.post(f'{UPLOAD_URL_BASE}/api/job/new', json=create_job)
 
@@ -71,9 +71,13 @@ def update_job(job_id, upload_many, reported_hashes, reported_cost):
         'Content-Type': 'application/json',
     }
     response = requests.post(url, data=body, headers=headers)
-    data = response.json()
-    logger.info("Total score in upload: {}GH".format(data['totalScore'] / 1000 / 1000 / 1000))
-    return data
+    try:
+        data = response.json()
+        logger.info("Total score in upload: {:.02f}GH".format(data['totalScore'] / 1000 / 1000 / 1000))
+        return data
+    except Exception as ex:
+        data = response.text
+        logger.error(f"Error uploading data: {data}")
 
 
 def check_address(address):
@@ -294,16 +298,20 @@ if __name__ == "__main__":
 
     job_id = start_job()
 
-    max_time = 60
-    factory_switch = f"-f {FACTORY}" if FACTORY else ""
-    public_key_switch = f"-z {PUBLIC_KEY_BASE}" if PUBLIC_KEY_BASE else ""
+    max_time = os.environ.get("MAX_TIME", "")
+    if max_time:
+        max_time_switch = " -b {}".format(max_time)
+    else:
+        max_time_switch = ""
+    factory_switch = f" -f {FACTORY}" if FACTORY else ""
+    public_key_switch = f" -z {PUBLIC_KEY_BASE}" if PUBLIC_KEY_BASE else ""
     if public_key_switch != "" and factory_switch != "":
         raise Exception("Cannot specify both KEY_BASE and FACTORY")
 
     exe = "Debug/profanity_cuda.exe" if os.name == "nt" else "profanity_cuda"
     for gpu in gpus:
 
-        command = "{} -b {} --device {} {}{}{}".format(exe, max_time, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
+        command = "{}{} --device {} {}{}{}".format(exe, max_time_switch, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
         print(command)
         process, stdout_thread, stderr_thread = run_process(command.split(" "), decode_output, decode_error)
         process.index = gpu['index']
