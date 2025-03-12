@@ -1,19 +1,80 @@
 import os
 import subprocess
+import threading
 import time
 import logging
+import requests
+import json
 
 from process import run_process
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.DEBUG,
+    level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
 gpus = []
 
 total_accepted_addresses = 0
+
+job_id = None
+
+UPLOAD_URL_BASE = os.environ.get("UPLOAD_URL_BASE", "https://addressology.ovh")
+FACTORY = os.environ.get('FACTORY', None)
+PUBLIC_KEY_BASE = os.environ.get('PUBLIC_KEY_BASE', None)
+
+multiple_results = []
+
+def start_job():
+
+    create_job = {
+        "miner": {
+            "provNodeId": None,
+            "provRewardAddr": None,
+            "provName": "Unknown",
+            "provExtraInfo": "Test"
+        },
+        "cruncherVer": "0.0.0",
+        "requestorId": "0x0000000000000000000000000000000000000000"
+    }
+    response = requests.post(f'{UPLOAD_URL_BASE}/api/job/new', json=create_job)
+
+    if response.status_code == 200:
+        print("Job started")
+        return response.json()['uid']
+
+def close_job(job_id):
+    url = f"{UPLOAD_URL_BASE}/api/job/finish/{job_id}"
+    headers = {
+        'Content-Type': 'application/json',
+    }
+    response = requests.post(url, headers=headers)
+    data = response.json()
+    print(data)
+    return data
+
+def update_job(job_id, upload_many, reported_hashes, reported_cost):
+    update = {
+        "extra": {
+            "jobId": job_id,
+            "reportedHashes": reported_hashes,
+            "reportedCost": reported_cost
+        },
+        "data": upload_many
+    }
+    body = json.dumps(update)
+    logger.info(f"Update data size: {len(body) / 1024:.1f}kB Total compute: {reported_hashes}")
+
+    url = f"{UPLOAD_URL_BASE}/api/fancy/new_many2"
+    headers = {
+        'Content-Type': 'application/json',
+    }
+    response = requests.post(url, data=body, headers=headers)
+    data = response.json()
+    logger.info("Total score in upload: {}GH".format(data['totalScore'] / 1000 / 1000 / 1000))
+    return data
+
 
 def check_address(address):
     global total_accepted_addresses
@@ -191,6 +252,13 @@ def decode_output(process, stdout_line):
             factory = stdout_split[2]
             check_address(address)
 
+            global multiple_results
+            multiple_results.append({
+                "salt": salt,
+                "address": address,
+                "factory": factory
+            })
+
     try:
         pr = gpus[idx]["last_print_time"]
     except Exception as ex:
@@ -198,27 +266,44 @@ def decode_output(process, stdout_line):
 
     if time.time() - gpus[idx]["last_print_time"] > 5:
         gpus[idx]["last_print_time"] = time.time()
-        logger.debug("GPU no: {} Accepted: {} Total {}G Speed {:.0f}MH/s".format(idx, total_accepted_addresses, gpus[idx]["total_compute"], gpus[idx]["reported_speed"]))
+        logger.info("GPU no: {} Accepted: {} Total {}G Speed {:.0f}MH/s".format(idx, total_accepted_addresses, gpus[idx]["total_compute"], gpus[idx]["reported_speed"]))
 
 
 def decode_error(process, stdout_line):
     decode_output(process, stdout_line)
 
 
+def upload_results():
+    while True:
+        time.sleep(10)
+        reported_hashes = sum(gpu.get("total_compute", 0) for gpu in gpus)
+        global multiple_results
+        if multiple_results:
+            print("Uploading results")
+            to_upload, multiple_results = multiple_results, []
+
+            try:
+                logger.info("Uploading results {} addresses".format(len(to_upload)))
+                update_job(job_id, to_upload, reported_hashes, 0)
+            except Exception as ex:
+                print(f"Error uploading results: {ex}")
+
 if __name__ == "__main__":
     get_gpu_info()
 
+
+    job_id = start_job()
+
     max_time = 60
-    factory = os.environ.get('FACTORY', None)
-    factory_switch = f"-f {factory}" if factory else ""
-    public_key_base = os.environ.get('KEY_BASE', None)
-    public_key_switch = f"-z {public_key_base}" if public_key_base else ""
+    factory_switch = f"-f {FACTORY}" if FACTORY else ""
+    public_key_switch = f"-z {PUBLIC_KEY_BASE}" if PUBLIC_KEY_BASE else ""
     if public_key_switch != "" and factory_switch != "":
         raise Exception("Cannot specify both KEY_BASE and FACTORY")
 
+    exe = "Debug/profanity_cuda.exe" if os.name == "nt" else "profanity_cuda"
     for gpu in gpus:
 
-        command = "profanity_cuda -b {} --device {} {}{}{}".format(max_time, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
+        command = "{} -b {} --device {} {}{}{}".format(exe, max_time, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
         print(command)
         process, stdout_thread, stderr_thread = run_process(command.split(" "), decode_output, decode_error)
         process.index = gpu['index']
@@ -227,6 +312,9 @@ if __name__ == "__main__":
         gpu['stdout_thread'] = stdout_thread
         gpu['stderr_thread'] = stderr_thread
 
+
+    upload_thread = threading.Thread(target=upload_results, daemon=True)
+    upload_thread.start()
 
     for gpu in gpus:
         gpu['process'].wait()
