@@ -25,14 +25,14 @@ FACTORY = os.environ.get('FACTORY', None)
 PUBLIC_KEY_BASE = os.environ.get('PUBLIC_KEY_BASE', None)
 REQUESTOR_ID = os.environ.get('REQUESTOR_ID', "0x0000000000000000000000000000000000000000")
 multiple_results = []
-
+CONTAINER_ID = os.environ.get('VAST_CONTAINERLABEL', None)
 def start_job():
 
     create_job = {
         "miner": {
             "provNodeId": None,
             "provRewardAddr": None,
-            "provName": "Unknown",
+            "provName": "Unknown" if CONTAINER_ID is None else CONTAINER_ID,
             "provExtraInfo": "Test"
         },
         "cruncherVer": "0.0.0",
