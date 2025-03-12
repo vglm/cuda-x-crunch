@@ -310,8 +310,11 @@ if __name__ == "__main__":
 
     exe = "Debug/profanity_cuda.exe" if os.name == "nt" else "profanity_cuda"
     for gpu in gpus:
-
-        command = "{}{} --device {} {}{}{}".format(exe, max_time_switch, gpu['index'], gpu["create3_find_args"], factory_switch, public_key_switch)
+        if public_key_switch:
+            kernel_args = gpu["private_find_args"]
+        else:
+            kernel_args = gpu["create3_find_args"]
+        command = "{}{} --device {} {}{}{}".format(exe, max_time_switch, gpu['index'], kernel_args, factory_switch, public_key_switch)
         print(command)
         process, stdout_thread, stderr_thread = run_process(command.split(" "), decode_output, decode_error)
         process.index = gpu['index']
