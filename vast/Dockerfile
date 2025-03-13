@@ -1,11 +1,11 @@
-FROM vastai/base-image:cuda-12.6.3-cudnn-devel-ubuntu22.04-py313
+FROM ubuntu:22.04
+
+RUN apt update && apt install -y python3 python3-requests python-is-python3
 
 # Vast need this command to work properly
 WORKDIR /opt/workspace-internal/
-RUN . /venv/main/bin/activate
 
-# Our custom installation
-
-COPY runner .
+COPY runner ./runner
 COPY profanity_cuda /usr/local/bin/profanity_cuda
-CMD ["python", "-u", "runner/runner.py"]
+
+ENTRYPOINT ["python", "-u", "runner/runner.py"]
