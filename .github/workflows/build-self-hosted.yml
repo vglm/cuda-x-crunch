@@ -32,6 +32,13 @@ jobs:
         run: |
           docker build -t profanity_cuda .
 
+      - name: Extract binary
+        run: |
+          container_id=$(docker run --rm -d profanity_cuda sleep 20)
+          sleep 2
+          docker cp $container_id:/usr/local/bin/profanity_cuda profanity_cuda
+          docker stop $container_id
+
       - name: Run checks
         run: |
           python -u test/check_pattern_generation.py
