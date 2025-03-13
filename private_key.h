@@ -5,7 +5,7 @@
 // private key search
 
 #define PROFANITY_INVERSE_SIZE 200
-#define RESULTS_ARRAY_SIZE 256 * 1024
+#define RESULTS_ARRAY_SIZE 250000
 
 struct private_search_data {
     cl_ulong4 public_key_x;
