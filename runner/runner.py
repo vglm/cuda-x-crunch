@@ -20,7 +20,7 @@ total_accepted_addresses = 0
 
 job_id = None
 
-UPLOAD_URL_BASE = os.environ.get("UPLOAD_URL_BASE", "https://addressology.ovh")
+UPLOAD_URL_BASE = os.environ.get("UPLOAD_URL_BASE", "https://addressology.net")
 FACTORY = os.environ.get('FACTORY', None)
 PUBLIC_KEY_BASE = os.environ.get('PUBLIC_KEY_BASE', None)
 REQUESTOR_ID = os.environ.get('REQUESTOR_ID', "0x0000000000000000000000000000000000000000")
