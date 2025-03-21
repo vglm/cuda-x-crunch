@@ -52,9 +52,12 @@ __device__ inline uint32_t scorer(ethaddress& addr)
     int pattern = 0;
     uint32_t number = addr.d[0];
     if (number == bswap32(0xbadbabe0)
+        || number == bswap32(0x01234567)
+        || number == bswap32(0x12345678)
         || number == bswap32(0xb00bbabe)
         || number == bswap32(0xc0ffee00)
         || number == bswap32(0xdaedbeef)
+        || number == bswap32(0xdaedf00d)
         || number == bswap32(0x31415926)
         || number == bswap32(0x00000000)
         || number == bswap32(0x11111111)
