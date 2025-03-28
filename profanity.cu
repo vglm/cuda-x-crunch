@@ -40,6 +40,8 @@
 #include <csignal>
 #include "Logger.hpp"
 #include "version.h"
+#include <chrono>
+#include <thread>
 
 bool g_exiting = false;
 // Signal handler function
@@ -120,6 +122,7 @@ int main(int argc, char ** argv)
     ArgParser argp(argc, argv);
     bool bHelp = false;
     double benchmarkLimitTime = 0.0;
+    double nicenessParameter = 0.0;
     int benchmarkLimitLoops = 0;
     bool bNoRun = false;
     bool bDebug = false;
@@ -150,6 +153,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('z', "public", publicKey);
     argp.addSwitch('i', "device", device_id);
     argp.addSwitch('n', "no_run", bNoRun);
+    argp.addSwitch('u', "niceness", nicenessParameter);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -281,11 +285,20 @@ int main(int argc, char ** argv)
             if (g_exiting) {
                 break;
             }
+            double loop_start = get_app_time_sec();
             create3_search(&init_data);
             double end = get_app_time_sec();
+
             if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
                 || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
                 break;
+            }
+            if (nicenessParameter > 0) {
+                double extra_wait_time = nicenessParameter * (end - loop_start);
+                if (extra_wait_time > 0) {
+                    LOG_INFO("Sleeping for %.2f seconds", extra_wait_time);
+                    std::this_thread::sleep_for(std::chrono::microseconds((uint64_t)(extra_wait_time * 1000000)));
+                }
             }
             loop_no += 1;
         }
