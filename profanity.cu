@@ -121,6 +121,7 @@ int main(int argc, char ** argv)
     bool bHelp = false;
     double benchmarkLimitTime = 0.0;
     int benchmarkLimitLoops = 0;
+    bool bNoRun = false;
     bool bDebug = false;
     bool bErrorsOnly = false;
     bool bVersion = false;
@@ -148,6 +149,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('r', "rounds", rounds);
     argp.addSwitch('z', "public", publicKey);
     argp.addSwitch('i', "device", device_id);
+    argp.addSwitch('n', "no_run", bNoRun);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -241,6 +243,9 @@ int main(int argc, char ** argv)
     }
     if (benchmarkLimitLoops > 0 || benchmarkLimitTime > 0) {
         LOG_WARNING("Benchmark mode enabled");
+    }
+    if (bNoRun) {
+        return 0;
     }
     if (!lookForPrivateKeys) {
         //normalize address
