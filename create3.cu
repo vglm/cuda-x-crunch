@@ -207,6 +207,8 @@ __global__ void create3_search_kernel(search_result* const results, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
+    //test
+
     for (int round = 1; round <= rounds; round++) {
         ethhash first;
 
