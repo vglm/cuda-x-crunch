@@ -4,6 +4,7 @@
 #define SCORE_ACCEPTED 1
 #define SCORE_REJECTED 0
 
+
 __device__ __forceinline__ uint32_t bswap32(uint32_t x) {
     return __byte_perm(x, 0, 0x0123);  // Reverse byte order
 }
@@ -11,7 +12,7 @@ __device__ __forceinline__ uint32_t bswap32(uint32_t x) {
 #define MATCH0_32(a, MASK) \
     ((a & bswap32(MASK)) == 0x0)
 
-__device__ inline uint32_t scorer(ethaddress& addr)
+__device__ inline uint32_t scorer(ethaddress& addr, uint64_t extra_prefix)
 {
     int group_score = 0;
     int letter_score = 0;
@@ -75,6 +76,7 @@ __device__ inline uint32_t scorer(ethaddress& addr)
         || number == bswap32(0xdddddddd)
         || number == bswap32(0xeeeeeeee)
         || number == bswap32(0xffffffff)
+        || number == extra_prefix
         ) {
         pattern = 1;
     }

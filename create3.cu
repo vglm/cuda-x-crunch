@@ -201,11 +201,19 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 #endif
 
+__constant__ uint64_t g_search_prefix_contract = 0;
+
+void update_search_prefix_contract(const uint64_t &pref)
+{
+    cudaMemcpyToSymbol(g_search_prefix_contract, &pref, sizeof(uint64_t));
+}
 
 
 __global__ void create3_search_kernel(search_result* const results, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
+
+    //test
 
     for (int round = 1; round <= rounds; round++) {
         ethhash first;
@@ -289,7 +297,7 @@ __global__ void create3_search_kernel(search_result* const results, int rounds)
         partial_keccakf((uint64_t*)&first);
 
         ethaddress& addr = *(ethaddress*)&first.b[12];
-        if (scorer(addr) == SCORE_ACCEPTED) {
+        if (scorer(addr, g_search_prefix_contract) == SCORE_ACCEPTED) {
             results[id].round = round;
             results[id].id = id;
 
