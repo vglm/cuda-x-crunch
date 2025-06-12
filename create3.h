@@ -48,7 +48,7 @@ void load_seed_to_device(salt *seed_data);
 void load_factory_to_device(const char* factory);
 void create3_data_init(create3_search_data* data);
 void create3_data_destroy(create3_search_data* data);
-void create3_search(create3_search_data* factory);
+void create3_search(create3_search_data* factory, uint64_t search_prefix);
 #ifdef UNUSED_OLD_TESTS
 void test_create3();
 #endif
@@ -57,4 +57,5 @@ void test_create3();
 void update_device_factory(const uint8_t* factory);
 void update_device_salt(const salt* salt);
 void run_kernel_create3_search(create3_search_data * data);
+void update_search_prefix_contract(const uint64_t &pref);
 

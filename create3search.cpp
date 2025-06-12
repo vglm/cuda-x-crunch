@@ -35,7 +35,7 @@ salt generate_random_salt() {
     return randomSalt;
 }
 
-void create3_search(create3_search_data *init_data)
+void create3_search(create3_search_data *init_data, uint64_t search_prefix)
 {
     double start = get_app_time_sec();
 
@@ -43,6 +43,7 @@ void create3_search(create3_search_data *init_data)
     const uint64_t data_count = init_data->kernel_groups * kernel_group_size;
 
     load_factory_to_device(init_data->factory);
+    update_search_prefix_contract(search_prefix);
     CHECK_CUDA_ERROR("Failed to load factory data");
 
     salt randomSalt = generate_random_salt();

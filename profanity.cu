@@ -123,6 +123,7 @@ int main(int argc, char ** argv)
     bool bHelp = false;
     double benchmarkLimitTime = 0.0;
     double nicenessParameter = 0.0;
+    uint64_t additionalPrefix = 0;
     int benchmarkLimitLoops = 0;
     bool bNoRun = false;
     bool bDebug = false;
@@ -154,6 +155,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('i', "device", device_id);
     argp.addSwitch('n', "no_run", bNoRun);
     argp.addSwitch('u', "niceness", nicenessParameter);
+    argp.addSwitch('p', "prefix", additionalPrefix);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -286,7 +288,7 @@ int main(int argc, char ** argv)
                 break;
             }
             double loop_start = get_app_time_sec();
-            create3_search(&init_data);
+            create3_search(&init_data, additionalPrefix);
             double end = get_app_time_sec();
 
             if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
@@ -340,7 +342,7 @@ int main(int argc, char ** argv)
             if (g_exiting) {
                 break;
             }
-            private_data_search(publicKey, &init_data);
+            private_data_search(publicKey, additionalPrefix, &init_data);
             double end = get_app_time_sec();
             if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
                 || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {

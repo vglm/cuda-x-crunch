@@ -22,8 +22,9 @@ struct private_search_data {
 };
 
 void update_public_key(mp_number const& x, mp_number const& y);
+void update_search_prefix(const uint64_t &pref);
 void private_data_init(private_search_data *init_data);
-void private_data_search(std::string public_key, private_search_data *init_data);
+void private_data_search(std::string public_key, uint64_t search_prefix, private_search_data *init_data);
 void private_data_destroy(private_search_data *init_data);
 void run_kernel_private_search(private_search_data * data);
 
