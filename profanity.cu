@@ -130,6 +130,7 @@ int main(int argc, char ** argv)
     bool bErrorsOnly = false;
     bool bVersion = false;
     uint64_t uSeed = 0;
+    bool bUseCPU = false;
 
     int kernelSize = 128; //256 sometimes give a bit better results, but on older cards it slows a lot
     int groups = 1000;
@@ -156,6 +157,7 @@ int main(int argc, char ** argv)
     argp.addSwitch('n', "no_run", bNoRun);
     argp.addSwitch('u', "niceness", nicenessParameter);
     argp.addSwitch('p', "prefix", additionalPrefix);
+    argp.addSwitch('c', "cpu", bUseCPU);
 
     if (!argp.parse()) {
         std::cout << "error: bad arguments, -h for help" << std::endl;
@@ -180,7 +182,7 @@ int main(int argc, char ** argv)
             return 1;
         }
     }
-    {
+    if (!bUseCPU) {
         int deviceCount;
         cudaGetDeviceCount(&deviceCount);
         if (device_id >= deviceCount) {
@@ -260,99 +262,195 @@ int main(int argc, char ** argv)
             std::cout << "error: bad factory address" << std::endl;
             return 1;
         }
-
-        create3_search_data init_data = { 0 };
-        memcpy(init_data.factory, factoryAddr.c_str(), 40);
-        if (strOutputDirectory.size() > 1000) {
-            std::cout << "error: output directory too long" << std::endl;
-            return 1;
-        }
-        memcpy(init_data.outputDir, strOutputDirectory.c_str(), strOutputDirectory.size());
-        init_data.rounds = rounds;
-        init_data.kernel_group_size = kernelSize;
-        init_data.kernel_groups = groups;
-
-        LOG_INFO("Initializing with params:");
-        LOG_INFO("Factory address: 0x%s", init_data.factory);
-        LOG_INFO("Output directory: %s", init_data.outputDir);
-        LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
-        LOG_INFO("Groups: %d", init_data.kernel_groups);
-
-        create3_data_init(&init_data);
-        LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
-
-        double start = get_app_time_sec();
-        uint64_t loop_no = 0;
-        while(true) {
-            if (g_exiting) {
-                break;
+        if (bUseCPU) {
+            create3_search_data cpu_init_data = { 0 };
+            memcpy(cpu_init_data.factory, factoryAddr.c_str(), 40);
+            if (strOutputDirectory.size() > 1000) {
+                std::cout << "error: output directory too long" << std::endl;
+                return 1;
             }
-            double loop_start = get_app_time_sec();
-            create3_search(&init_data, additionalPrefix);
-            double end = get_app_time_sec();
+            memcpy(cpu_init_data.outputDir, strOutputDirectory.c_str(), strOutputDirectory.size());
+            cpu_init_data.rounds = rounds;
+            cpu_init_data.kernel_group_size = kernelSize;
+            cpu_init_data.kernel_groups = groups;
 
-            if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
-                || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
-                break;
-            }
-            if (nicenessParameter > 0) {
-                double extra_wait_time = nicenessParameter * (end - loop_start);
-                if (extra_wait_time > 0) {
-                    LOG_INFO("Sleeping for %.2f seconds", extra_wait_time);
-                    std::this_thread::sleep_for(std::chrono::microseconds((uint64_t)(extra_wait_time * 1000000)));
+            LOG_INFO("Initializing with params:");
+            LOG_INFO("Factory address: 0x%s", cpu_init_data.factory);
+            LOG_INFO("Output directory: %s", cpu_init_data.outputDir);
+            LOG_INFO("Kernel size: %d", cpu_init_data.kernel_group_size);
+            LOG_INFO("Groups: %d", cpu_init_data.kernel_groups);
+
+            cpu_create3_data_init(&cpu_init_data);
+            LOG_INFO("Successfully initialised [CPU]: Hashes at one run %.2f MH", ((double)cpu_init_data.kernel_groups * cpu_init_data.kernel_group_size * cpu_init_data.rounds) / 1000000.0);
+
+            double start = get_app_time_sec();
+            uint64_t loop_no = 0;
+            while(true) {
+                if (g_exiting) {
+                    break;
                 }
+                double loop_start = get_app_time_sec();
+                cpu_create3_search(&cpu_init_data, additionalPrefix);
+                double end = get_app_time_sec();
+
+                if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+                    || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
+                    break;
+                }
+                if (nicenessParameter > 0) {
+                    double extra_wait_time = nicenessParameter * (end - loop_start);
+                    if (extra_wait_time > 0) {
+                        LOG_INFO("Sleeping for %.2f seconds", extra_wait_time);
+                        std::this_thread::sleep_for(std::chrono::microseconds((uint64_t)(extra_wait_time * 1000000)));
+                    }
+                }
+                loop_no += 1;
             }
-            loop_no += 1;
+            cpu_create3_data_destroy(&cpu_init_data);
+            return 0;
+        } else {
+            create3_search_data init_data = { 0 };
+            memcpy(init_data.factory, factoryAddr.c_str(), 40);
+            if (strOutputDirectory.size() > 1000) {
+                std::cout << "error: output directory too long" << std::endl;
+                return 1;
+            }
+            memcpy(init_data.outputDir, strOutputDirectory.c_str(), strOutputDirectory.size());
+            init_data.rounds = rounds;
+            init_data.kernel_group_size = kernelSize;
+            init_data.kernel_groups = groups;
+
+            LOG_INFO("Initializing with params:");
+            LOG_INFO("Factory address: 0x%s", init_data.factory);
+            LOG_INFO("Output directory: %s", init_data.outputDir);
+            LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
+            LOG_INFO("Groups: %d", init_data.kernel_groups);
+
+            create3_data_init(&init_data);
+            LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)init_data.kernel_groups * init_data.kernel_group_size * init_data.rounds) / 1000000.0);
+
+            double start = get_app_time_sec();
+            uint64_t loop_no = 0;
+            while(true) {
+                if (g_exiting) {
+                    break;
+                }
+                double loop_start = get_app_time_sec();
+                create3_search(&init_data, additionalPrefix);
+                double end = get_app_time_sec();
+
+                if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+                    || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
+                    break;
+                }
+                if (nicenessParameter > 0) {
+                    double extra_wait_time = nicenessParameter * (end - loop_start);
+                    if (extra_wait_time > 0) {
+                        LOG_INFO("Sleeping for %.2f seconds", extra_wait_time);
+                        std::this_thread::sleep_for(std::chrono::microseconds((uint64_t)(extra_wait_time * 1000000)));
+                    }
+                }
+                loop_no += 1;
+            }
+            create3_data_destroy(&init_data);
+            return 0;
         }
-        create3_data_destroy(&init_data);
-        return 0;
     } else {
-        LOG_INFO("Searching for private keys for public key: %s", publicKey.c_str());
-        //load public key into variables
-        if (publicKey.size() != 128) {
-            std::cout << "error: bad public key" << std::endl;
-            return 1;
-        }
-        cl_ulong4 clSeedX = fromHexCLUlong(publicKey.substr(0, 64));
-        cl_ulong4 clSeedY = fromHexCLUlong(publicKey.substr(64, 64));
-
-        LOG_INFO("Public key SeedX: %llu %llu %llu %llu\n", clSeedX.s0, clSeedX.s1, clSeedX.s2, clSeedX.s3);
-        LOG_INFO("Public key SeedY: %llu %llu %llu %llu\n", clSeedY.s0, clSeedY.s1, clSeedY.s2, clSeedY.s3);
-
-
-        private_search_data init_data;
-        init_data.rounds = rounds;
-        init_data.kernel_group_size = kernelSize;
-        init_data.kernel_groups = groups;
-        init_data.public_key_x = clSeedX;
-        init_data.public_key_y = clSeedY;
-
-        memset(&init_data.seed, 0, sizeof(init_data.seed));
-
-        //LOG_INFO("Factory address: 0x%s", init_data.factory);
-        //LOG_INFO("Output directory: %s", init_data.outputDir);
-        LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
-        LOG_INFO("Groups: %d", init_data.kernel_groups);
-
-        private_data_init(&init_data);
-
-        double start = get_app_time_sec();
-        uint64_t loop_no = 0;
-        while(true) {
-            if (g_exiting) {
-                break;
+        if (bUseCPU) {
+            LOG_INFO("Searching for private keys [CPU] for public key: %s", publicKey.c_str());
+            //load public key into variables
+            if (publicKey.size() != 128) {
+                std::cout << "error: bad public key" << std::endl;
+                return 1;
             }
-            private_data_search(publicKey, additionalPrefix, &init_data);
-            double end = get_app_time_sec();
-            if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
-                || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
-                break;
-            }
-            loop_no += 1;
-        }
+            cl_ulong4 clSeedX = fromHexCLUlong(publicKey.substr(0, 64));
+            cl_ulong4 clSeedY = fromHexCLUlong(publicKey.substr(64, 64));
 
-        private_data_destroy(&init_data);
-        return 0;
+            LOG_INFO("Public key SeedX: %llu %llu %llu %llu\n", clSeedX.s0, clSeedX.s1, clSeedX.s2, clSeedX.s3);
+            LOG_INFO("Public key SeedY: %llu %llu %llu %llu\n", clSeedY.s0, clSeedY.s1, clSeedY.s2, clSeedY.s3);
+
+
+            private_search_data cpu_init_data;
+            cpu_init_data.rounds = rounds;
+            cpu_init_data.kernel_group_size = kernelSize;
+            cpu_init_data.kernel_groups = groups;
+            cpu_init_data.public_key_x = clSeedX;
+            cpu_init_data.public_key_y = clSeedY;
+
+            memset(&cpu_init_data.seed, 0, sizeof(cpu_init_data.seed));
+
+            //LOG_INFO("Factory address: 0x%s", init_data.factory);
+            //LOG_INFO("Output directory: %s", init_data.outputDir);
+            LOG_INFO("Kernel size: %d", cpu_init_data.kernel_group_size);
+            LOG_INFO("Groups: %d", cpu_init_data.kernel_groups);
+
+            cpu_private_data_init(&cpu_init_data);
+
+            double start = get_app_time_sec();
+            uint64_t loop_no = 0;
+            while(true) {
+                if (g_exiting) {
+                    break;
+                }
+                cpu_private_data_search(publicKey, additionalPrefix, &cpu_init_data);
+                double end = get_app_time_sec();
+                if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+                    || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
+                    break;
+                }
+                loop_no += 1;
+            }
+
+            cpu_private_data_destroy(&cpu_init_data);
+            return 0;
+        } else {
+            LOG_INFO("Searching for private keys for public key: %s", publicKey.c_str());
+            //load public key into variables
+            if (publicKey.size() != 128) {
+                std::cout << "error: bad public key" << std::endl;
+                return 1;
+            }
+            cl_ulong4 clSeedX = fromHexCLUlong(publicKey.substr(0, 64));
+            cl_ulong4 clSeedY = fromHexCLUlong(publicKey.substr(64, 64));
+
+            LOG_INFO("Public key SeedX: %llu %llu %llu %llu\n", clSeedX.s0, clSeedX.s1, clSeedX.s2, clSeedX.s3);
+            LOG_INFO("Public key SeedY: %llu %llu %llu %llu\n", clSeedY.s0, clSeedY.s1, clSeedY.s2, clSeedY.s3);
+
+
+            private_search_data init_data;
+            init_data.rounds = rounds;
+            init_data.kernel_group_size = kernelSize;
+            init_data.kernel_groups = groups;
+            init_data.public_key_x = clSeedX;
+            init_data.public_key_y = clSeedY;
+
+            memset(&init_data.seed, 0, sizeof(init_data.seed));
+
+            //LOG_INFO("Factory address: 0x%s", init_data.factory);
+            //LOG_INFO("Output directory: %s", init_data.outputDir);
+            LOG_INFO("Kernel size: %d", init_data.kernel_group_size);
+            LOG_INFO("Groups: %d", init_data.kernel_groups);
+
+            private_data_init(&init_data);
+
+            double start = get_app_time_sec();
+            uint64_t loop_no = 0;
+            while(true) {
+                if (g_exiting) {
+                    break;
+                }
+                private_data_search(publicKey, additionalPrefix, &init_data);
+                double end = get_app_time_sec();
+                if ((benchmarkLimitTime > 0 && (end - start) > benchmarkLimitTime)
+                    || (benchmarkLimitLoops > 0 && loop_no + 1 >= benchmarkLimitLoops)) {
+                    break;
+                }
+                loop_no += 1;
+            }
+
+            private_data_destroy(&init_data);
+            return 0;
+        }
     }
 
 }
