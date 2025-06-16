@@ -226,3 +226,7 @@ void cpu_create3_search_kernel(search_result* const results, int rounds, const s
 
     }
 }
+
+void run_cpu_create3_search(create3_search_data * data) {
+    //create3_search_kernel<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+}

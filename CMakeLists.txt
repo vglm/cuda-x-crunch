@@ -26,6 +26,7 @@ add_executable(profanity_cuda
   debug_utils.cpp
   scorer.cuh
   cpu_create3.cpp
+  cpu_create3search.cpp
  )
 
  if(UNIX AND NOT APPLE)
