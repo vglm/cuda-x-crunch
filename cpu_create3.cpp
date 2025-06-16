@@ -427,7 +427,7 @@ void test_create3()
 #endif
 
 void run_cpu_create3_search(create3_search_data * data) {
-  for (int i = 0; i < data->kernel_groups * data->kernel_group_size; i++) {
+    for (int i = 0; i < data->kernel_groups * data->kernel_group_size; i++) {
         cpu_create3_search_kernel(data->device_result, data->rounds, i);
     }
 }
