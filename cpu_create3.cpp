@@ -1,5 +1,6 @@
 #include "create3.h"
-#include "scorer.cuh"
+#include <string.h>
+#include "cpu_scorer.h"
 
 #define ROL(X, S) (((X) << S) | ((X) >> (64 - S)))
 
@@ -51,13 +52,13 @@ ITER(0x000000000000800a); ITER(0x800000008000000a); \
 ITER(0x8000000080008081); ITER(0x8000000000008080); \
 ITER(0x0000000080000001); ITER(0x8000000080008008);
 
-__device__ void compute_keccak_full(ethhash * hash) {
+void cpu_compute_keccak_full(ethhash * hash) {
   uint64_t b[5];
   uint64_t t;
   uint64_t *a = (uint64_t *)hash;
     ITERS();
 }
-__device__ void partial_keccakf(uint64_t *a)
+void cpu_partial_keccakf(uint64_t *a)
 {
   uint64_t b[5];
   uint64_t t;
@@ -104,17 +105,17 @@ __device__ void partial_keccakf(uint64_t *a)
 #undef o
 }
 
-__constant__ uint8_t g_factory[20] = {0};
-__constant__ salt g_randomSalt = {0};
+uint8_t g_factory[20] = {0};
+salt g_randomSalt = {0};
 
-void update_device_factory(const uint8_t* factory)
+void cpu_update_device_factory(const uint8_t* factory)
 {
-    cudaMemcpyToSymbol(g_factory, factory, 20);
+    memcpy(g_factory, factory, 20);
 }
 
-void update_device_salt(const salt* seed_data)
+void cpu_update_device_salt(const salt* seed_data)
 {
-    cudaMemcpyToSymbol(g_randomSalt, seed_data, sizeof(salt));
+    memcpy(&g_randomSalt, seed_data, sizeof(salt));
 }
 
 #ifdef UNUSED_OLD_TESTS
@@ -175,7 +176,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
-        compute_keccak_full(&first);
+        cpu_compute_keccak_full(&first);
 
         first.b[0] = 0xd6;
         first.b[1] = 0x94;
@@ -191,7 +192,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
 
-        partial_keccakf((uint64_t*)&first);
+        cpu_partial_keccakf((uint64_t*)&first);
         if (first.b[0] != 0 && round == rounds - 1) {
             for (int i = 0; i < 20; i++) {
                 factory_data[id].b[i] = first.b[i + 12];
@@ -201,17 +202,16 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 #endif
 
-__constant__ uint64_t g_search_prefix_contract = 0;
+uint64_t g_search_prefix_contract = 0;
 
-void update_search_prefix_contract(const uint64_t &pref)
+void cpu_update_search_prefix_contract(const uint64_t &pref)
 {
-    cudaMemcpyToSymbol(g_search_prefix_contract, &pref, sizeof(uint64_t));
+    g_search_prefix_contract = pref;
 }
 
 
-__global__ void create3_search_kernel(search_result* const results, int rounds)
+void cpu_create3_search_kernel(search_result* const results, int rounds, const size_t id)
 {
-	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
     //test
 
@@ -278,7 +278,7 @@ __global__ void create3_search_kernel(search_result* const results, int rounds)
         first.b[135] = 0x80;
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
-        compute_keccak_full(&first);
+        cpu_compute_keccak_full(&first);
 
         first.b[0] = 0xd6;
         first.b[1] = 0x94;
@@ -294,10 +294,10 @@ __global__ void create3_search_kernel(search_result* const results, int rounds)
         for (int i = 136; i < 200; ++i)
             first.b[i] = 0;
 
-        partial_keccakf((uint64_t*)&first);
+        cpu_partial_keccakf((uint64_t*)&first);
 
         ethaddress& addr = *(ethaddress*)&first.b[12];
-        if (scorer(addr, g_search_prefix_contract) == SCORE_ACCEPTED) {
+        if (cpu_scorer(addr, g_search_prefix_contract) == SCORE_ACCEPTED) {
             results[id].round = round;
             results[id].id = id;
 
@@ -426,6 +426,8 @@ void test_create3()
 }
 #endif
 
-void run_kernel_create3_search(create3_search_data * data) {
-    create3_search_kernel<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
+void run_cpu_create3_search(create3_search_data * data) {
+    for (int i = 0; i < data->kernel_groups * data->kernel_group_size; i++) {
+        cpu_create3_search_kernel(data->device_result, data->rounds, i);
+    }
 }
