@@ -1,6 +1,6 @@
 import os
 
-os.system("cmake .")
+os.system("cmake . -DCMAKE_BUILD_TYPE=Release")
 
 os.system("git describe --tags > ver.txt")
 with open("ver.txt", "r") as f:
