@@ -1,4 +1,6 @@
 #include "create3.h"
+#include <string.h>
+#include "cpu_scorer.h"
 
 #define ROL(X, S) (((X) << S) | ((X) >> (64 - S)))
 
@@ -108,11 +110,13 @@ salt g_randomSalt = { 0 };
 
 void cpu_update_device_factory(const uint8_t* factory)
 {
+    memcpy(g_factory, factory, 20);
     //cudaMemcpyToSymbol(g_factory, factory, 20);
 }
 
 void cpu_update_device_salt(const salt* seed_data)
 {
+    memcpy(&g_randomSalt, seed_data, sizeof(salt));
     //cudaMemcpyToSymbol(g_randomSalt, seed_data, sizeof(salt));
 }
 
@@ -121,6 +125,7 @@ uint64_t g_search_prefix_contract = 0;
 
 void cpu_update_search_prefix_contract(const uint64_t& pref)
 {
+    g_search_prefix_contract = pref;
     //cudaMemcpyToSymbol(g_search_prefix_contract, &pref, sizeof(uint64_t));
 }
 
@@ -213,20 +218,24 @@ void cpu_create3_search_kernel(search_result* const results, int rounds, const s
         cpu_partial_keccakf((uint64_t*)&first);
 
         ethaddress& addr = *(ethaddress*)&first.b[12];
-        /*
-        if (scorer(addr, g_search_prefix_contract) == SCORE_ACCEPTED) {
+
+        if (cpu_scorer(addr, g_search_prefix_contract) == SCORE_ACCEPTED) {
             results[id].round = round;
             results[id].id = id;
 
             for (int i = 0; i < 20; i++) {
                 results[id].addr[i] = first.b[i + 12];
             }
-        }*/
+        }
 
 
     }
 }
 
 void run_cpu_create3_search(create3_search_data * data) {
+    for (int i = 0; i < data->kernel_groups * data->kernel_group_size; i++) {
+        cpu_create3_search_kernel(data->device_result, data->rounds, i);
+    }
+
     //create3_search_kernel<<<(int)(data->kernel_groups), data->kernel_group_size>>>(data->device_result, data->rounds);
 }
