@@ -1,6 +1,7 @@
 #include "private_key.h"
 #include "cpu_scorer.h"
 #include <cstdint>
+#include <cstring>
 
 #define rotate64(x, s) ((x << s) | (x >> (64U - s)))
 
