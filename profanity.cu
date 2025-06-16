@@ -281,7 +281,7 @@ int main(int argc, char ** argv)
             LOG_INFO("Groups: %d", cpu_init_data.kernel_groups);
 
             cpu_create3_data_init(&cpu_init_data);
-            LOG_INFO("Successfully initialised: Hashes at one run %.2f MH", ((double)cpu_init_data.kernel_groups * cpu_init_data.kernel_group_size * cpu_init_data.rounds) / 1000000.0);
+            LOG_INFO("Successfully initialised [CPU]: Hashes at one run %.2f MH", ((double)cpu_init_data.kernel_groups * cpu_init_data.kernel_group_size * cpu_init_data.rounds) / 1000000.0);
 
             double start = get_app_time_sec();
             uint64_t loop_no = 0;
