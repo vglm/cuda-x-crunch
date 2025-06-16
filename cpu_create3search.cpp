@@ -3,7 +3,6 @@
 #include "utils.hpp"
 #include "Logger.hpp"
 #include <iostream>
-#include <cuda_runtime_api.h>
 #include <string>
 #include <filesystem>
 #include <cstring>
@@ -53,12 +52,10 @@ void cpu_create3_search(create3_search_data *init_data, uint64_t search_prefix)
 
     LOG_DEBUG("Running keccak kernel...");
     run_cpu_create3_search(init_data);
-    CHECK_CUDA_ERROR("Failed to run kernel");
 
     LOG_DEBUG("Copying data back...");
     search_result* f = init_data->host_result;
     memcpy(f, init_data->device_result, data_count * sizeof(search_result));
-    CHECK_CUDA_ERROR("Failed to run kernel or copy memory");
 
     char hexAddr[43] = { 0 };
     for (int n = 0; n < data_count; n++) {
