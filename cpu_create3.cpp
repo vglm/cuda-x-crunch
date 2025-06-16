@@ -1,5 +1,5 @@
 #include "create3.h"
-#include "scorer.cuh"
+#include "cpu_scorer.h"
 
 #define ROL(X, S) (((X) << S) | ((X) >> (64 - S)))
 
@@ -51,13 +51,13 @@ ITER(0x000000000000800a); ITER(0x800000008000000a); \
 ITER(0x8000000080008081); ITER(0x8000000000008080); \
 ITER(0x0000000080000001); ITER(0x8000000080008008);
 
-__device__ void compute_keccak_full(ethhash * hash) {
+void compute_keccak_full(ethhash * hash) {
   uint64_t b[5];
   uint64_t t;
   uint64_t *a = (uint64_t *)hash;
     ITERS();
 }
-__device__ void partial_keccakf(uint64_t *a)
+void partial_keccakf(uint64_t *a)
 {
   uint64_t b[5];
   uint64_t t;
@@ -104,21 +104,21 @@ __device__ void partial_keccakf(uint64_t *a)
 #undef o
 }
 
-__constant__ uint8_t g_factory[20] = {0};
-__constant__ salt g_randomSalt = {0};
+uint8_t g_factory[20] = {0};
+salt g_randomSalt = {0};
 
-void update_device_factory(const uint8_t* factory)
+void cpu_update_device_factory(const uint8_t* factory)
 {
     cudaMemcpyToSymbol(g_factory, factory, 20);
 }
 
-void update_device_salt(const salt* seed_data)
+void cpu_update_device_salt(const salt* seed_data)
 {
     cudaMemcpyToSymbol(g_randomSalt, seed_data, sizeof(salt));
 }
 
 #ifdef UNUSED_OLD_TESTS
-__global__ void create3_host(factory* const factory_data, salt* const salt_data, int rounds)
+void create3_host(factory* const factory_data, salt* const salt_data, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
@@ -201,7 +201,7 @@ __global__ void create3_host(factory* const factory_data, salt* const salt_data,
 }
 #endif
 
-__constant__ uint64_t g_search_prefix_contract = 0;
+uint64_t g_search_prefix_contract = 0;
 
 void update_search_prefix_contract(const uint64_t &pref)
 {
@@ -209,7 +209,7 @@ void update_search_prefix_contract(const uint64_t &pref)
 }
 
 
-__global__ void create3_search_kernel(search_result* const results, int rounds)
+void create3_search_kernel(search_result* const results, int rounds)
 {
 	const size_t id = (threadIdx.x + blockIdx.x * blockDim.x);
 
