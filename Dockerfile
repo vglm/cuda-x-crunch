@@ -8,5 +8,9 @@ RUN cmake . -DCMAKE_BUILD_TYPE=Release
 RUN make
 
 FROM ubuntu:22.04
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends parallel && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/profanity_cuda /usr/local/bin/profanity_cuda
 
